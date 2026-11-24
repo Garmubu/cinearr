@@ -145,7 +145,7 @@ function statusBadge(m) {
   return `<span class="badge ${esc(cls)}">${esc(label)}</span>`;
 }
 const KIND = () => ({ added: t('added'), grabbed: t('grabbed'), imported: t('imported'), upgraded: t('upgraded'), failed: t('failed'), blocked: t('blocked'),
-  warning: t('warning'), scan: t('scan'), moved: t('folder'), cancelled: t('cancelled'), removed: t('removed'), deleted: t('deleted'), subtitle: t('subtitle'), played: t('played'), cleanup: t('cleanup') });
+  warning: t('warning'), scan: t('scan'), moved: t('folder'), refresh: t('pages'), cancelled: t('cancelled'), removed: t('removed'), deleted: t('deleted'), subtitle: t('subtitle'), played: t('played'), cleanup: t('cleanup') });
 const kindTag = (k) => `<span class="tag ${k === 'imported' || k === 'subtitle' ? 'g' : k === 'failed' || k === 'blocked' ? 'r' : ''}">${esc(KIND()[k] || k)}</span>`;
 function posterImg(path, title, sz) {
   return path ? `<img loading="lazy" src="${esc(IMG(path, sz))}" alt="">` : `<div class="noimg">${esc(title)}</div>`;
@@ -427,7 +427,7 @@ function viewLibrary(v, arg) {
     <div class="page-head"><h1>${esc(t('Library'))}</h1><span class="sub" id="lib-count"></span><div class="spacer"></div>
       <button data-act="scan" id="scan-btn" title="${esc(t('Reads the films and series folders again: files added, moved or deleted by hand are taken into account'))}">${ICON.refresh}${esc(t('Update the library'))}</button>
       <div class="searchbar" style="max-width:300px">${ICON.discover}<input id="lib-text" placeholder="${esc(t('Filter'))}" value="${esc(libText)}"></div></div>
-    <div id="scan-report"></div>
+    <div id="meta-progress"></div><div id="scan-report"></div>
     <div class="tabs" role="tablist">
       <button class="tab ${libKind === 'films' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'films'}" data-act="lib-kind" data-k="films">${ICON.film}${esc(t('Films'))} <span class="muted">${state.movies.length}</span></button>
       <button class="tab ${libKind === 'series' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'series'}" data-act="lib-kind" data-k="series">${ICON.tv}${esc(t('Series'))} <span class="muted">${state.series.length}</span></button></div>
@@ -496,6 +496,9 @@ async function scanFinished() {
 function drawScan() {
   const btn = $('#scan-btn');
   const running = !!state.status?.scanning;
+  const meta = state.status?.metadata;
+  const mbox = $('#meta-progress');
+  if (mbox) mbox.innerHTML = meta?.running ? `<div class="callout"><span class="spinner"></span> ${esc(t('Reloading the film and series pages in the new language: {done} of {total}', { done: meta.done, total: meta.total }))}</div>` : '';
   if (btn) {
     btn.disabled = running;
     btn.innerHTML = running ? `<span class="spinner"></span>${esc(t('Reading the folders…'))}` : `${ICON.refresh}${esc(t('Update the library'))}`;
@@ -1530,6 +1533,7 @@ function drawSettingsTab() {
 async function saveSettings(quiet) {
   readTab();
   const before = state.settings?.uiLanguage || 'en';
+  const beforePages = state.settings?.language;
   const saved = await api('PUT', '/settings', edit);
   state.settings = saved;
   edit = JSON.parse(JSON.stringify(saved));
@@ -1542,6 +1546,9 @@ async function saveSettings(quiet) {
     viewSettings($('#view'), settingsTab);
   } else if (!quiet) {
     drawSettingsTab();
+  }
+  if (beforePages && saved.language !== beforePages && ((state.movies || []).length || (state.series || []).length)) {
+    toast(t('The film and series pages of your library are being reloaded in the new language.'), 'ok');
   }
   refreshStatus();
 }

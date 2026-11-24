@@ -455,7 +455,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) (any, error) {
 	return map[string]any{
 		"crash": crash, "debug": diag.Debug(),
 		"version": Version, "setupDone": st.SetupDone, "dataDir": s.App.Store.Dir(), "os": runtime.GOOS,
-		"busy": s.App.Busy(), "busySeries": s.App.BusySeries(), "scanning": s.App.LastScan().Running, "seriesPath": st.SeriesPath != "", "lastSync": last, "syncError": syncErr, "playerFound": perr == nil, "client": dlclient.Name(st.Client.Kind),
+		"busy": s.App.Busy(), "busySeries": s.App.BusySeries(), "scanning": s.App.LastScan().Running, "metadata": s.App.MetadataStatus(), "seriesPath": st.SeriesPath != "", "lastSync": last, "syncError": syncErr, "playerFound": perr == nil, "client": dlclient.Name(st.Client.Kind),
 		"indexers": len(st.Indexers), "tmdb": st.TMDBKey != "", "subtitleProviders": len(s.App.SubtitleProviders()),
 		"openSubtitlesBuiltin": subtitles.BuiltinOpenSubtitlesKey != "", "subtitleProblem": app.SubtitleSetupProblem(st.Subtitles),
 	}, nil
@@ -475,6 +475,11 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) (any, erro
 	}
 	if v.MinFreeSpaceMB < 0 {
 		return nil, i18n.New("the free space to keep cannot be negative")
+	}
+	// the film pages follow the interface when they were in its language:
+	// switching the interface from French to English shows English pages
+	if v.UILanguage != cur.UILanguage && v.Language == cur.Language && cur.Language == i18n.Lookup(cur.UILanguage).TMDB {
+		v.Language = i18n.Lookup(v.UILanguage).TMDB
 	}
 	px, err := proxy.Normalize(v.Proxy)
 	if err != nil {
@@ -516,6 +521,11 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) (any, erro
 		return nil, err
 	}
 	proxy.Set(v.Proxy)
+	if v.Language != cur.Language && v.SetupDone {
+		// titles and summaries stored in the library are reloaded in the
+		// new language, without restarting
+		s.App.StartMetadataRefresh()
+	}
 	// a library folder changed: the stored paths follow it (the user moves
 	// the files), then the folders are read again
 	moved := false

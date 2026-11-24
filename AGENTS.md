@@ -28,7 +28,8 @@ Before declaring a change done: `gofmt -l .` is empty, `make test` passes and, f
 4. **Secrets.** Settings hold passwords, API keys and cookies. Never log them on purpose: the log writer cleans every line with `diag.RedactText` (Sonarr's rules: keys, passwords, tokens, cookies, passkeys, e-mails, user names in home paths), and URLs go through `diag.RedactURL`; add a rule in `internal/diag/redact.go` (with a test) for any new kind of secret. The OpenSubtitles application key is injected at build time from the `OPENSUBTITLES_API_KEY` environment variable and must never be committed.
 5. **Every user-facing string is translated** (see Translations). English is the source language.
 6. **Ported code stays faithful.** Regular expressions from Radarr, Sonarr and Prowlarr use .NET syntax and run on `internal/rx`: do not rewrite them for Go's `regexp`. Name the original class or file in a comment, and add new borrowings to `CREDITS.md`.
-7. **The user's files are precious.** Nothing deletes library files unless the user ticked “also delete the files”. The reset (`Store.Reset`) keeps the library and never touches files.
+7. **The user's files are precious.** Nothing deletes library files unless the user ticked “also delete the files”, and even then they go through the recycle bin (`app/recycle.go`). The reset (`Store.Reset`) keeps the library and never touches files.
+8. **Documentation.** The README is a short presentation for people discovering the project: keep it short, with no comparison to other software. Every user-visible change goes into the user guide `docs/guide.md`. Screenshots only show the demonstration data (`tools/e2e/screenshots.py`).
 
 ## Architecture
 
@@ -111,7 +112,7 @@ tools/e2e/              end-to-end harness (fakes) and Python drivers
 
 - `internal/parser/testdata/radarr_cases.json` holds 683 cases extracted from Radarr's NUnit fixtures: they must all pass.
 - `tools/e2e/main.go` starts the real application on `127.0.0.1:7980` with fake TMDB (films Inception…, series Twin Peaks), a fake Cardigann tracker (including a malicious release) and fake qBittorrent and Transmission that “download” sparse files. `tools/e2e/fakebin/vlc` is a fake player that records its arguments.
-- `tools/e2e/series_api.py` tests the series flow through the API; `tools/e2e/drive_ui.py` drives the whole interface (in French) and fails on any console error; `tools/e2e/screenshots.py` regenerates `docs/screenshots/`.
+- `tools/e2e/series_api.py` tests the series flow through the API; `tools/e2e/drive_ui.py` drives the whole interface (in French) and fails on any console error; `tools/e2e/screenshots.py` regenerates `docs/screenshots/` from the demonstration data (`E2E_DEMO=1`: open films, public-domain classics, a Creative Commons series; generated posters).
 
 ## Style
 

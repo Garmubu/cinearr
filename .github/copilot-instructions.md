@@ -7,4 +7,6 @@ Read [AGENTS.md](../AGENTS.md) at the root of the repository: it is the guide fo
 - Every user-facing string is written in English and added to `internal/i18n/locales/{fr,es,it,de}.json`.
 - Safety: never execute downloaded files, keep the torrent content checks, never log secrets (use `diag.RedactText`).
 - Store data is changed only through `Store.UpdateMovie` / `Store.UpdateSeries`.
+- Library files are never deleted directly: they go through the recycle bin (`app/recycle.go`).
+- Keep the README short; user-visible changes go into `docs/guide.md`.
 - Check with `gofmt -l .`, `make test` and, for searches, downloads, import or the interface, `make e2e`.

@@ -39,7 +39,12 @@ func main() {
 	_ = os.MkdirAll(filepath.Join(dataDir, "definitions", "custom"), 0o755)
 	_ = os.MkdirAll(dlDir, 0o755)
 
-	tmdbURL := serve(fakeTMDB())
+	tmdbHandler := fakeTMDB()
+	if os.Getenv("E2E_DEMO") != "" { // README screenshots: open films and public-domain classics
+		tmdbHandler = demoTMDB()
+		releases, tvReleases = demoReleases()
+	}
+	tmdbURL := serve(tmdbHandler)
 	trackerURL := serve(fakeTracker())
 	qbitURL := serve(newFakeQbit(dlDir).handler())
 	trURL := serve(newFakeTransmission(dlDir).handler())

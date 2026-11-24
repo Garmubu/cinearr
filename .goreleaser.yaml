@@ -20,7 +20,7 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-    files: [README.md, LICENSE, CREDITS.md]
+    files: [README.md, LICENSE, CREDITS.md, CHANGELOG.md, docs/guide.md]
 checksum:
   name_template: checksums.txt
 changelog:

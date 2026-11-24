@@ -43,7 +43,9 @@ type App struct {
 	syncError       string
 	lastProbe       time.Time // last connection check while idle
 	lastSeriesCheck time.Time
-	lastRecycle     time.Time  // last cleanup of the recycle bins
+	lastRecycle     time.Time      // last cleanup of the recycle bins
+	meta            MetadataReport // reload of the pages after a language change
+	metaAgain       bool
 	scan            ScanReport // last library scan
 	startScan       bool       // the scan of the launch is done
 	probeKey        string
