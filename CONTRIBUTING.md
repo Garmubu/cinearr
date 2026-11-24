@@ -1,0 +1,93 @@
+# Contributing to Cinearr
+
+Thanks for your interest! Bug reports, translations, new torrent clients, subtitle providers or players, and fixes are all welcome.
+
+If you work with an AI coding assistant, it will find the project guide in [AGENTS.md](AGENTS.md) (also loaded through `CLAUDE.md`, `GEMINI.md` and `.github/copilot-instructions.md`). That file is the reference for the architecture and the rules below; this one is the short version for humans.
+
+## Reporting a problem
+
+1. Reproduce it with **Detailed log** enabled (*Settings › Data and diagnostics*).
+2. Click **Export a diagnostic**: the zip contains the log, the version, the system, the settings, the library and the history, with passwords, keys, cookies and passkeys hidden.
+3. Open an issue describing what you did, what you expected and what happened, and attach the zip.
+
+Never post your settings file or a log exported by other means: they may contain credentials.
+
+## Development setup
+
+You only need **Go 1.23 or newer**. The project has no external dependency.
+
+```bash
+git clone https://github.com/<you>/cinearr && cd cinearr
+go run ./cmd/cinearr -debug -data ./data    # a separate data folder for development
+```
+
+Useful options: `-browser` (open in your browser), `-no-window`, `-listen 127.0.0.1:7979`.
+
+| Command | What it does |
+|---|---|
+| `make test` | `go vet` for Linux, Windows and macOS, then `go test ./...` |
+| `make lint` | golangci-lint v2 with the configuration in `.golangci.yml` (optional) |
+| `make e2e` | End-to-end tests (see below) |
+| `make release` | Builds the six targets into `dist/` |
+| `gofmt -l .` | Must print nothing |
+
+### End-to-end tests
+
+`tools/e2e` starts the real application on `http://127.0.0.1:7980` against local fakes: TMDB (films and the series *Twin Peaks*), a Cardigann tracker that also serves a malicious release, qBittorrent and Transmission that “download” sparse files, and a fake VLC that records its arguments. Nothing goes to the network.
+
+```bash
+pip install playwright && playwright install chromium
+make e2e
+```
+
+It runs `series_api.py` (series flow through the API) then `drive_ui.py` (setup wizard, films, series, settings, reset, in French), and fails on any error, including JavaScript console errors. Screenshots land in `e2e-shots/`.
+
+You can also start the harness alone and use the interface by hand:
+
+```bash
+PATH="$PWD/tools/e2e/fakebin:$PATH" go run ./tools/e2e
+```
+
+`tools/e2e/screenshots.py` regenerates the screenshots of the README.
+
+## Ground rules
+
+- **Standard library only**, `CGO_ENABLED=0`, and the six targets must keep building. Put OS-specific code in files with build constraints.
+- **Interface**: plain JavaScript, HTML and CSS in `web/static/`, no framework or build step. The content security policy forbids inline handlers: use `data-act` attributes and the `actions` object.
+- **Safety**: never execute a downloaded file; keep the content checks; never log secrets.
+- **Faithful ports**: logic taken from Radarr, Sonarr, Prowlarr or Bazarr keeps its behaviour and its regular expressions (they run on `internal/rx`, a .NET-compatible engine). Mention the source in a comment and in [CREDITS.md](CREDITS.md).
+- **Tests without network**: use `httptest` servers for every remote service.
+- **Small, focused pull requests**, with tests for new behaviour and a description of what you checked.
+
+## Translations
+
+The interface and the messages are written in English in the code and translated through one catalog per language in `internal/i18n/locales/` (`fr.json`, `es.json`, `it.json`, `de.json`). The key is the English text, the value its translation:
+
+```json
+"{n} episodes selected": "{n} épisodes sélectionnés"
+```
+
+- Keep the placeholders exactly (`{name}`, `%s`, `%d`, `%%`): `go test ./internal/i18n` checks them.
+- A missing key falls back to English, so partial catalogs are fine.
+- To add a language: copy `fr.json`, translate the values, then add the language to `i18n.Languages` (`internal/i18n/i18n.go`) and to `UI_LANGUAGES` and `LOCALES` in `web/static/app.js`.
+
+## Where things live
+
+| You want to… | Look at |
+|---|---|
+| Change how releases are accepted or ranked | `internal/decision` (films: `decision.go`, series: `episodes.go`) |
+| Recognise a new release naming scheme | `internal/parser` (`parser.go`, `episode.go`) with test cases |
+| Support a new torrent client | `internal/dlclient` (implement `Client`, register it in `Clients` and `New`) |
+| Add a subtitle provider | `internal/subtitles` (`catalog.go` + a provider) |
+| Support another player | `internal/player` |
+| Change searches, downloads or imports | `internal/app` (`movies.go`, `series.go`, `release.go`, `monitor.go`, `importer.go`) |
+| Change the interface | `web/static/app.js`, `app.css` |
+| Add an API route | `internal/api` (`api.go`, `series.go`) |
+
+## Releases
+
+Pushing a tag `vX.Y.Z` runs the GitHub Actions release workflow (GoReleaser): it tests, builds the six targets and publishes the archives. The repository secret `OPENSUBTITLES_API_KEY`, when set, is built into the executables so that users only enter their OpenSubtitles.com account; it must never appear in the repository.
+
+## License
+
+By contributing, you agree that your contributions are licensed under the GNU General Public License v3.0, like the rest of the project.

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fake VLC for the end-to-end tests: records the arguments it receives.
+for a in "$@"; do printf "%s\n" "$a"; done > "${CINEARR_PLAYER_LOG:-/tmp/cinearr-player-args.txt}"
