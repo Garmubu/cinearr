@@ -1,0 +1,16 @@
+# golangci-lint v2 configuration (make lint).
+version: "2"
+linters:
+  default: none
+  enable:
+    - errorlint
+    - govet
+    - ineffassign
+    - staticcheck
+    - unparam
+    - unused
+    - wastedassign
+  settings:
+    staticcheck:
+      # defaults, plus: De Morgan rewrites are left to the author's judgement
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-QF1001"]

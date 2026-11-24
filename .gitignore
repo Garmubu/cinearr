@@ -1,0 +1,6 @@
+/dist/
+/bin/
+*.exe
+/data/
+*.log
+/e2e-shots/
