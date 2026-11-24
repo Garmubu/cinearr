@@ -16,7 +16,7 @@ Cinearr runs on your own computer: one file of about 10 MB for Windows, macOS an
 - **Proxy and VPN support**: searches and `.torrent` downloads can go through an HTTP or SOCKS5 proxy (the one of your VPN), site by site, to reach sites blocked in your country.
 - **Tidy library**: films and episodes stored in clean folders, files you add by hand picked up automatically, upgrades to a better quality, a recycle bin for removed files.
 - **Subtitles** from many providers or your own sites, downloaded automatically in your languages and saved next to the video.
-- **Play** in VLC, MPC-HC or mpv, which Cinearr can also install for you.
+- **Play** in VLC, MPC-HC or mpv, which Cinearr can also install for you. You can also use your own, after all, these will be video files.
 
 ## Screenshots
 
