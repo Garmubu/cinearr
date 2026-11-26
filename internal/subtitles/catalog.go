@@ -58,7 +58,7 @@ func Catalog() []Info {
 	builtin := BuiltinOpenSubtitlesKey != ""
 	osKeyHint := "Required: on opensubtitles.com, avatar › API consumers › New consumer, then copy the API key."
 	if builtin {
-		osKeyHint = "Optional: Cinearr provides its own key."
+		osKeyHint = "Optional: Cinearr provides its own key. Enter yours if that key ever stops working."
 	}
 	return []Info{
 		{
@@ -73,13 +73,14 @@ func Catalog() []Info {
 			},
 			build: func(c map[string]string) (Provider, error) {
 				key := strings.TrimSpace(c["apiKey"])
-				if key == "" {
+				builtin := key == "" && BuiltinOpenSubtitlesKey != ""
+				if builtin {
 					key = BuiltinOpenSubtitlesKey
 				}
 				if key == "" {
 					return nil, i18n.New("OpenSubtitles.com requires an API key in addition to the username and password: create it for free on opensubtitles.com › API consumers › New consumer.")
 				}
-				return &OpenSubtitles{APIKey: key, Username: strings.TrimSpace(c["username"]), Password: c["password"], IncludeAI: c["includeAI"] == "true"}, nil
+				return &OpenSubtitles{APIKey: key, Builtin: builtin, Username: strings.TrimSpace(c["username"]), Password: c["password"], IncludeAI: c["includeAI"] == "true"}, nil
 			},
 		},
 		{

@@ -67,10 +67,16 @@ jobs:
         run: |
           go install github.com/tc-hib/go-winres@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Built-in keys
+        env:
+          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: tools/release/keys.sh
       - name: Build every file
         env:
-          # application key for OpenSubtitles.com (Settings › Secrets › Actions)
+          # application keys built into Cinearr (Settings › Secrets › Actions)
           OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: tools/release/package.sh "${{ needs.version.outputs.version }}" "$GITHUB_REPOSITORY"
       - uses: actions/upload-artifact@v4
         with:

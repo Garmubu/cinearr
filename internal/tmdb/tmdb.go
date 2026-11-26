@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cinearr/internal/i18n"
@@ -26,9 +27,34 @@ var APIBase = "https://api.themoviedb.org/3"
 // ImageBase is the CDN prefix for posters and backdrops.
 const ImageBase = "https://image.tmdb.org/t/p/"
 
+// BuiltinKey is the application key given at build time
+// (-ldflags "-X cinearr/internal/tmdb.BuiltinKey=…", from the TMDB_API_KEY
+// secret of the release workflow). It is used when the user has not entered
+// a key of their own. TMDB limits requests per address, so every user has
+// their own share.
+var BuiltinKey = ""
+
+// builtinRefused is set when TMDB refuses the built-in key (revoked or
+// suspended), and cleared by the next request it accepts.
+var builtinRefused atomic.Bool
+
+// BuiltinRefused reports whether TMDB refused the built-in key at the last
+// request made with it.
+func BuiltinRefused() bool { return builtinRefused.Load() }
+
+// ErrBuiltinRefused is returned when TMDB no longer accepts the built-in key.
+var ErrBuiltinRefused error = builtinError{}
+
+type builtinError struct{}
+
+func (builtinError) Error() string {
+	return i18n.T("TMDB no longer accepts the key provided with Cinearr (it may have been revoked or suspended). To keep using Cinearr, enter your own free TMDB key in Settings › General.")
+}
+
 // Client queries TMDB.
 type Client struct {
 	key      string
+	builtin  bool // key is BuiltinKey
 	language string
 	http     *http.Client
 	mu       sync.Mutex
@@ -40,16 +66,25 @@ type cached struct {
 	data []byte
 }
 
-// New creates a client. key is either a v3 API key or a v4 read token.
+// New creates a client. key is either a v3 API key or a v4 read token;
+// without one, the built-in key is used.
 func New(key, language string) *Client {
 	if language == "" {
 		language = "en-US"
 	}
-	return &Client{key: strings.TrimSpace(key), language: language, http: proxy.Client(proxy.Metadata, http.Client{Timeout: 20 * time.Second}), cache: map[string]cached{}}
+	key = strings.TrimSpace(key)
+	builtin := false
+	if key == "" && BuiltinKey != "" {
+		key, builtin = strings.TrimSpace(BuiltinKey), true
+	}
+	return &Client{key: key, builtin: builtin, language: language, http: proxy.Client(proxy.Metadata, http.Client{Timeout: 20 * time.Second}), cache: map[string]cached{}}
 }
 
-// Configured reports whether a key is set.
+// Configured reports whether a key is set (the user's or the built-in one).
 func (c *Client) Configured() bool { return c.key != "" }
+
+// Builtin reports whether the client uses the built-in key.
+func (c *Client) Builtin() bool { return c.builtin }
 
 func (c *Client) get(ctx context.Context, path string, q url.Values, out any) error {
 	if c.key == "" {
@@ -91,7 +126,15 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
+		if c.builtin {
+			builtinRefused.Store(false)
+		}
 	case http.StatusUnauthorized:
+		// invalid, revoked or suspended key (TMDB status codes 3, 7, 10)
+		if c.builtin {
+			builtinRefused.Store(true)
+			return ErrBuiltinRefused
+		}
 		return i18n.New("TMDB key refused")
 	case http.StatusNotFound:
 		return i18n.New("not found on TMDB")

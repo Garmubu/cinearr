@@ -12,7 +12,9 @@
 #   macos-arm64.app.tar, macos-amd64.app.tar: Cinearr.app with its file
 #                       modes, signed and put in a .dmg by the release workflow
 #
-# The OpenSubtitles.com application key is read from OPENSUBTITLES_API_KEY.
+# The application keys built into Cinearr are read from OPENSUBTITLES_API_KEY
+# (OpenSubtitles.com) and TMDB_API_KEY (TMDB); without them, users enter
+# their own keys.
 # Windows icons and version information need go-winres
 # (go install github.com/tc-hib/go-winres@latest); without it the
 # executables keep the default icon.
@@ -27,6 +29,7 @@ mkdir -p "$out"
 
 ldflags="-s -w -X cinearr/internal/api.Version=$version -X cinearr/internal/update.Version=$version"
 ldflags+=" -X cinearr/internal/update.Repo=$repo -X cinearr/internal/subtitles.BuiltinOpenSubtitlesKey=${OPENSUBTITLES_API_KEY:-}"
+ldflags+=" -X cinearr/internal/tmdb.BuiltinKey=${TMDB_API_KEY:-}"
 docs=(README.md LICENSE CREDITS.md CHANGELOG.md)
 
 build() { # goos goarch output package [extra ldflags]

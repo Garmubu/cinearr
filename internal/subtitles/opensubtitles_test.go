@@ -3,6 +3,7 @@ package subtitles
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -51,5 +52,52 @@ func TestOpenSubtitlesTest(t *testing.T) {
 	}
 	if _, err := (&OpenSubtitles{Username: "garm", Password: "pw"}).Test(ctx); err == nil {
 		t.Fatal("missing key accepted")
+	}
+}
+
+// TestOpenSubtitlesBuiltinKey: a refused built-in key is reported as such
+// (not as a refused account), and cleared once the key is accepted again.
+func TestOpenSubtitlesBuiltinKey(t *testing.T) {
+	valid := "builtin"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Api-Key") != valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/infos/formats":
+			_, _ = w.Write([]byte(`{"data":{}}`))
+		case "/login":
+			_, _ = w.Write([]byte(`{"token":"tok"}`))
+		case "/subtitles":
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	defer builtinRefused.Store(false)
+	ctx := context.Background()
+	o := &OpenSubtitles{APIKey: "builtin", Builtin: true, Username: "garm", Password: "pw", baseURL: srv.URL + "/"}
+	if _, err := o.Search(ctx, Video{Title: "Inception", ImdbID: "tt1375666"}, []string{"en"}); err != nil || BuiltinKeyRefused() {
+		t.Fatalf("search: %v (refused %v)", err, BuiltinKeyRefused())
+	}
+	valid = "another" // the built-in key is revoked
+	_, err := o.Search(ctx, Video{Title: "Inception", ImdbID: "tt1375666"}, []string{"en"})
+	if !errors.Is(err, ErrBuiltinKeyRefused) || !BuiltinKeyRefused() {
+		t.Fatalf("revoked key: %v (refused %v)", err, BuiltinKeyRefused())
+	}
+	if !strings.Contains(err.Error(), "Settings › Subtitles") {
+		t.Fatalf("message does not lead to the settings: %v", err)
+	}
+	// a key of the user's own is reported as such, without the flag
+	builtinRefused.Store(false)
+	if _, err := (&OpenSubtitles{APIKey: "mine", baseURL: srv.URL + "/"}).Test(ctx); !errors.Is(err, errOSKey) || BuiltinKeyRefused() {
+		t.Fatalf("own key: %v", err)
+	}
+	valid = "builtin"
+	builtinRefused.Store(true)
+	if _, err := o.Search(ctx, Video{Title: "Inception", ImdbID: "tt1375666"}, []string{"en"}); err != nil || BuiltinKeyRefused() {
+		t.Fatalf("key accepted again: %v (refused %v)", err, BuiltinKeyRefused())
 	}
 }

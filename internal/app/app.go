@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -116,6 +117,31 @@ func SubtitleSetupProblem(s store.SubtitleSettings) string {
 		return errs[0].Error()
 	}
 	return i18n.T("No subtitle provider enabled: add one in Settings › Subtitles.")
+}
+
+// KeyProblem is a key provided with Cinearr that its service no longer
+// accepts, while the user has not entered a key of their own.
+type KeyProblem struct {
+	Service string `json:"service"` // TMDB or OpenSubtitles.com
+	Message string `json:"message"`
+	Tab     string `json:"tab"` // settings tab where the user enters their key
+}
+
+// KeyProblems lists the built-in keys refused by their service.
+func KeyProblems(s store.Settings) []KeyProblem {
+	out := []KeyProblem{}
+	if strings.TrimSpace(s.TMDBKey) == "" && tmdb.BuiltinRefused() {
+		out = append(out, KeyProblem{"TMDB", tmdb.ErrBuiltinRefused.Error(), "general"})
+	}
+	if subtitles.BuiltinKeyRefused() {
+		for _, p := range s.Subtitles.Providers {
+			if p.ID == "opensubtitles" && p.Enabled && strings.TrimSpace(p.Settings["apiKey"]) == "" {
+				out = append(out, KeyProblem{"OpenSubtitles.com", subtitles.ErrBuiltinKeyRefused.Error(), "subtitles"})
+				break
+			}
+		}
+	}
+	return out
 }
 
 // history records an event of a film (a series with seriesHistory).

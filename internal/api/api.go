@@ -458,8 +458,9 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) (any, error) {
 		"crash": crash, "debug": diag.Debug(),
 		"version": Version, "setupDone": st.SetupDone, "dataDir": s.App.Store.Dir(), "os": runtime.GOOS,
 		"busy": s.App.Busy(), "busySeries": s.App.BusySeries(), "scanning": s.App.LastScan().Running, "metadata": s.App.MetadataStatus(), "seriesPath": st.SeriesPath != "", "lastSync": last, "syncError": syncErr, "playerFound": perr == nil, "client": dlclient.Name(st.Client.Kind),
-		"indexers": len(st.Indexers), "tmdb": st.TMDBKey != "", "subtitleProviders": len(s.App.SubtitleProviders()),
+		"indexers": len(st.Indexers), "tmdb": st.TMDBKey != "" || tmdb.BuiltinKey != "", "tmdbBuiltin": tmdb.BuiltinKey != "", "subtitleProviders": len(s.App.SubtitleProviders()),
 		"openSubtitlesBuiltin": subtitles.BuiltinOpenSubtitlesKey != "", "subtitleProblem": app.SubtitleSetupProblem(st.Subtitles),
+		"keyProblems": app.KeyProblems(st),
 	}, nil
 }
 
@@ -523,6 +524,18 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) (any, erro
 		return nil, err
 	}
 	proxy.Set(v.Proxy)
+	// a subtitle provider whose settings changed (a key of the user's own,
+	// an account) is no longer paused for its past failures
+	before := map[string]string{}
+	for _, p := range cur.Subtitles.Providers {
+		b, _ := json.Marshal(p)
+		before[p.ID] = string(b)
+	}
+	for _, p := range v.Subtitles.Providers {
+		if b, _ := json.Marshal(p); before[p.ID] != string(b) {
+			subtitles.Pauses.OK(p.ID)
+		}
+	}
 	if v.Language != cur.Language && v.SetupDone {
 		// titles and summaries stored in the library are reloaded in the
 		// new language, without restarting
@@ -715,11 +728,15 @@ func (s *Server) testTMDB(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	res, err := tmdb.New(v.Key, v.Language).Search(ctx, "Inception", 2010)
+	c := tmdb.New(v.Key, v.Language)
+	if !c.Configured() {
+		return nil, i18n.New("TMDB key missing: enter it in Settings")
+	}
+	res, err := c.Search(ctx, "Inception", 2010)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]int{"results": len(res)}, nil
+	return map[string]any{"results": len(res), "builtin": c.Builtin()}, nil
 }
 
 type summaryOut struct {

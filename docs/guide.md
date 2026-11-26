@@ -66,7 +66,7 @@ Extract the archive and run `./install.sh`: it asks for the folder (by default `
 ## What you need
 
 
-- **A TMDB key** (free): create an account on [themoviedb.org](https://www.themoviedb.org/signup), then *Settings › API › Developer*. It gives Cinearr the film and series information, posters and IMDb ids.
+- **No key for the film information**: it comes from TMDB (information, posters and IMDb ids), and the official releases include a TMDB key. You can use a key of your own instead (see [Built-in keys](#built-in-keys)).
 - **A torrent client with its web interface enabled**:
 
   | Client | Where | Default address |
@@ -85,7 +85,7 @@ Extract the archive and run `./install.sh`: it asks for the folder (by default `
 A wizard asks, step by step, for:
 
 1. the **language** of the interface;
-2. the **TMDB key** (with a *Check* button) and the language of the film pages;
+2. the language of the film pages, and optionally your own **TMDB key** (with a *Check* button);
 3. the **torrent client** (with a *Test* button);
 4. the **films folder** and the **series folder** (ideally on the same disk as the downloads of the torrent client: imports are then instant hard links);
 5. the **video player** (detected, or installed for you);
@@ -178,7 +178,7 @@ You add the providers you want and enter their account or key when they need one
 
 | Provider | Needs | Languages | Films | Series |
 |---|---|---|---|---|
-| OpenSubtitles.com | A free account **and** an API key (*avatar › API consumers › New consumer*) | All | Yes | Yes |
+| OpenSubtitles.com | A free account (optional, raises the daily quota); an API key only if you build Cinearr yourself | All | Yes | Yes |
 | SubDL | A free API key | Many | Yes | Yes |
 | Addic7ed (Gestdown) | Nothing | Many | No | Yes |
 | TVsubtitles.net | Nothing | Many | No | Yes |
@@ -195,7 +195,18 @@ Nothing restricts you to this list:
 - **Your own site** works with any subtitle website: in the subtitle search of a film or an episode, a *Search on …* button opens its search page with the title filled in (`{query}`, `{title}`, `{original}`, `{year}`, `{imdb}`, `{tmdb}`, `{season}`, `{episode}`, `{s00e00}` and `{lang}` are replaced). You download the subtitle there and add it with **Add a subtitle file**.
 - **Add a subtitle file** accepts `.srt`, `.ass`, `.ssa`, `.vtt`, `.sub` or a `.zip`: the file is saved next to the video, converted to UTF-8, and the player loads it.
 
-The official releases include an OpenSubtitles.com application key: you only enter your OpenSubtitles account.
+The official releases include an OpenSubtitles.com application key: you only enter your OpenSubtitles account. Without an account, OpenSubtitles allows 5 downloads a day; with a free account, 20.
+
+### Built-in keys
+
+The official releases include a TMDB key and an OpenSubtitles.com key, so you can start without creating any. The limits of both services apply to each user separately (per address and per account), not to the key: other Cinearr users do not use up your share.
+
+If one of these services stops accepting the key provided with Cinearr (it can be revoked or blocked), Cinearr tells you in a window, in the side bar and in the settings. You can then enter a key of your own, free, which Cinearr uses instead:
+
+- **TMDB**: create an account on [themoviedb.org](https://www.themoviedb.org/signup), then *Settings › API* and request a “Developer” key (personal use); copy the “API Key” or the “API Read Access Token” into *Settings › General › TMDB key*.
+- **OpenSubtitles.com**: on [opensubtitles.com](https://www.opensubtitles.com/en/consumers), *avatar › API consumers › New consumer*; copy the API key into *Settings › Subtitles*, in the OpenSubtitles.com provider.
+
+A key you entered is always used before the built-in one. If you build Cinearr yourself, it has no built-in key unless you give one (see `CONTRIBUTING.md`).
 
 
 ### Players

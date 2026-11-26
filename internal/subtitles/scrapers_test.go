@@ -145,8 +145,12 @@ func TestBuildCatalog(t *testing.T) {
 	}
 	BuiltinOpenSubtitlesKey = "builtin"
 	provs, _ = Build([]Config{{ID: "opensubtitles", Enabled: true, Settings: map[string]string{"username": "u", "password": "p"}}})
-	if len(provs) != 1 || provs[0].(*OpenSubtitles).APIKey != "builtin" {
+	if len(provs) != 1 || provs[0].(*OpenSubtitles).APIKey != "builtin" || !provs[0].(*OpenSubtitles).Builtin {
 		t.Fatalf("builtin key not used: %v", provs)
+	}
+	provs, _ = Build([]Config{{ID: "opensubtitles", Enabled: true, Settings: map[string]string{"apiKey": "mine"}}})
+	if len(provs) != 1 || provs[0].(*OpenSubtitles).APIKey != "mine" || provs[0].(*OpenSubtitles).Builtin {
+		t.Fatalf("own key not used: %v", provs)
 	}
 	for _, p := range Catalog() {
 		if p.build == nil && !p.Link {

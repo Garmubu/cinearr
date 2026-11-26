@@ -205,6 +205,7 @@ function renderNav() {
     ${s.setupDone ? `<div title="${esc(s.syncError || '')}"><span class="dot ${qOk ? 'ok' : 'bad'}"></span>${esc(qOk ? t('{name} connected', { name: clientName() }) : t('{name} unreachable', { name: clientName() }))}</div>` : ''}
     <div><span class="dot ${s.playerFound ? 'ok' : 'bad'}"></span>${esc(s.playerFound ? t('Player ready') : t('Player not found'))}</div>
     <div><span class="dot ${s.indexers ? 'ok' : 'bad'}"></span>${esc(plural(s.indexers, '{n} indexer', '{n} indexers'))}</div>
+    ${(s.keyProblems || []).map((p) => `<a href="#/settings/${esc(p.tab)}" title="${esc(p.message)}"><span class="dot bad"></span>${esc(t('{name}: key to replace', { name: p.service }))}</a>`).join('')}
     <div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted">v${esc(s.version)}</span>
     <button class="ghost small" data-act="quit" title="${esc(t('Quit Cinearr'))}">${ICON.power}${esc(t('Quit'))}</button></div>`;
 }
@@ -219,8 +220,33 @@ async function refreshStatus() {
     else if (scanWasRunning) { scanWasRunning = false; scanFinished(); }
     renderNav();
     checkCrash();
+    checkKeyProblems();
     if (state.refresh) state.refresh();
   } catch (e) { /* server restarting */ }
+}
+
+// checkKeyProblems tells the user, once per session and service, that a
+// key provided with Cinearr is refused, and leads to the settings where
+// they can enter their own.
+const keyProblemsShown = new Set();
+function checkKeyProblems() {
+  const s = state.status;
+  if (!s || !s.setupDone || state.view === 'setup' || document.querySelector('#modal-root .modal')) return;
+  const p = (s.keyProblems || []).find((x) => !keyProblemsShown.has(x.service));
+  if (!p) return;
+  keyProblemsShown.add(p.service);
+  const m = modal({ title: t('{name} refuses the key provided with Cinearr', { name: p.service }),
+    body: `<p>${esc(p.message)}</p><p class="muted">${esc(t('Your own key is free and only takes a few minutes to create. Cinearr uses it instead of the built-in one.'))}</p>`,
+    footer: `<button data-later>${esc(t('Later'))}</button><a class="btn primary" href="#/settings/${esc(p.tab)}" data-go>${esc(t('Open the settings'))}</a>` });
+  m.el.querySelector('[data-later]').onclick = () => m.close();
+  m.el.querySelector('[data-go]').addEventListener('click', () => m.close());
+}
+
+// keyProblem returns the warning shown in a settings tab when the built-in
+// key of one of its services is refused.
+function keyProblem(tab) {
+  return ((state.status && state.status.keyProblems) || []).filter((p) => p.tab === tab)
+    .map((p) => `<div class="callout warn">${esc(p.message)}</div>`).join('');
 }
 
 let crashShown = false;
@@ -1432,8 +1458,10 @@ function drawSettingsTab() {
       html = `<div class="card"><h2>${esc(t('Interface'))}</h2>
         ${select(s, 'uiLanguage', t('Language of the interface'), UI_LANGUAGES)}
         </div>
-        <div class="card"><h2>${esc(t('Film information'))}</h2>
-        ${field(s, 'tmdbKey', t('TMDB key'), t('API v3 key or v4 read access token, free on <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>. TMDB also provides the IMDb ids.'), 'password')}
+        <div class="card"><h2>${esc(t('Film information'))}</h2>${keyProblem('general')}
+        ${field(s, 'tmdbKey', t('TMDB key'), state.status?.tmdbBuiltin
+    ? t('Optional: Cinearr provides its own key. If it ever stops working, enter yours here (API v3 key or v4 read access token, free on <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>).')
+    : t('API v3 key or v4 read access token, free on <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>. TMDB also provides the IMDb ids.'), 'password')}
         ${select(s, 'language', t('Language of the film pages'), LANGS)}
         </div>
         <div class="card"><h2>${esc(t('Proxy (VPN)'))}</h2><p class="card-sub">${esc(t('To reach sites blocked in your country, the searches can go through a proxy: most VPN services provide one (SOCKS5 or HTTP), with its address, port and account in their member area. Site names are resolved by the proxy. If your VPN already protects the whole computer, leave this empty.'))}</p>
@@ -1504,7 +1532,7 @@ function drawSettingsTab() {
         <div class="grid2">${field(s, 'subtitles.languages', t('Languages (ISO codes, in order)'), esc(t('E.g. en, fr')), 'lower-list')}
         ${field(s, 'subtitles.minPercent', t('Minimum score (%)'), esc(t('Below it, nothing is downloaded automatically.')), 'number')}</div>
         ${check(s, 'subtitles.hearingImpaired', t('Prefer subtitles for the deaf and hard of hearing'))}</div>
-        <div class="card"><h2>${esc(t('Providers'))}</h2><p class="card-sub">${esc(t('The sites where subtitles are searched. Add the ones you want, with their account or key when they need one.'))}</p>
+        <div class="card"><h2>${esc(t('Providers'))}</h2><p class="card-sub">${esc(t('The sites where subtitles are searched. Add the ones you want, with their account or key when they need one.'))}</p>${keyProblem('subtitles')}
         <div id="sub-providers"></div></div>`;
       break;
     case 'player':
@@ -1828,13 +1856,13 @@ async function viewSetup(v) {
     case 'welcome':
       body = `<div class="choice lang-choice" role="radiogroup" aria-label="Language">${UI_LANGUAGES.map(([c, n]) => `<button type="button" role="radio" aria-checked="${c === LANG}" class="choice-item ${c === LANG ? 'active' : ''}" data-act="pick-lang" data-lang="${c}">${ICON.globe}${esc(n)}</button>`).join('')}</div>
         <h1>${esc(t('Welcome to Cinearr'))}</h1><p class="lead">${esc(t('Search a film or a series: Cinearr finds the best release on your sites, has your torrent client download it, stores it in your library, fetches the subtitles and opens it in your video player.'))}</p>
-        <div class="callout">${esc(t('A few minutes of setup:'))}<ol><li>${esc(t('a free TMDB key (film information)'))}</li><li>${esc(t('access to your torrent client (qBittorrent, Transmission, Deluge or µTorrent)'))}</li><li>${esc(t('the folders of your films and series'))}</li><li>${esc(t('the video player'))}</li><li>${esc(t('your sites (indexers)'))}</li><li>${esc(t('the subtitle providers (optional)'))}</li></ol></div>`;
+        <div class="callout">${esc(t('A few minutes of setup:'))}<ol><li>${esc(state.status?.tmdbBuiltin ? t('the language of the film information') : t('a free TMDB key (film information)'))}</li><li>${esc(t('access to your torrent client (qBittorrent, Transmission, Deluge or µTorrent)'))}</li><li>${esc(t('the folders of your films and series'))}</li><li>${esc(t('the video player'))}</li><li>${esc(t('your sites (indexers)'))}</li><li>${esc(t('the subtitle providers (optional)'))}</li></ol></div>`;
       break;
     case 'tmdb':
       body = `<h1>${esc(t('Film database'))}</h1><p class="lead">${esc(t('TMDB provides the pages, posters and IMDb id of every film (used to find the right releases).'))}</p>
-        <div class="callout"><ol><li>${t('Create an account on <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a>')}</li>
+        ${state.status?.tmdbBuiltin ? `<div class="callout">${esc(t('Cinearr provides its own TMDB key: you can continue without entering one. If that key ever stops working, Cinearr will tell you, and you can then enter your own, free:'))}` : '<div class="callout">'}<ol><li>${t('Create an account on <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a>')}</li>
         <li>${esc(t('Settings › API › request a “Developer” key (personal use)'))}</li><li>${esc(t('Copy the “API Key” or the “API Read Access Token”'))}</li></ol></div>
-        ${field(s, 'tmdbKey', t('TMDB key'), '', 'password')}
+        ${field(s, 'tmdbKey', state.status?.tmdbBuiltin ? t('Your TMDB key (optional)') : t('TMDB key'), '', 'password')}
         ${select(s, 'language', t('Language of the film pages'), LANGS)}
         <div class="row"><button data-act="w-test-tmdb">${esc(t('Check'))}</button><span id="w-res"></span></div>`;
       break;
@@ -1899,7 +1927,7 @@ async function pickLanguage(code) {
 async function setupNext() {
   saveStep();
   const step = SETUP_STEPS[setupStep];
-  if (step === 'tmdb' && !draft.tmdbKey) return toast(t('The TMDB key is needed to search films'), 'bad');
+  if (step === 'tmdb' && !draft.tmdbKey && !state.status?.tmdbBuiltin) return toast(t('The TMDB key is needed to search films'), 'bad');
   if (step === 'library' && !draft.libraryPath) return toast(t('Choose a folder for your films'), 'bad');
   if (step === 'player' && playersInfo && playersInfo.error) toast(t('No player ready: you can install one later in Settings › Player'));
   if (!draft.uiLanguage) draft.uiLanguage = LANG;
@@ -2138,7 +2166,10 @@ const actions = {
   'w-test-tmdb': async () => {
     const res = $('#w-res');
     res.innerHTML = '<span class="spinner"></span>';
-    try { await api('POST', '/settings/test-tmdb', { key: $('#' + fieldId('tmdbKey')).value.trim(), language: $('#' + fieldId('language')).value }); res.innerHTML = `<span class="ok-text">✓ ${esc(t('Valid key'))}</span>`; }
+    try {
+      const r = await api('POST', '/settings/test-tmdb', { key: $('#' + fieldId('tmdbKey')).value.trim(), language: $('#' + fieldId('language')).value });
+      res.innerHTML = `<span class="ok-text">✓ ${esc(r.builtin ? t('The key provided with Cinearr works') : t('Valid key'))}</span>`;
+    }
     catch (e) { res.innerHTML = `<span class="bad-text">${esc(e.message)}</span>`; }
   },
 };

@@ -2,6 +2,12 @@
 
 All notable changes for users are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0]
+
+- No key to create any more: the official releases include a TMDB key, so the film information works right away (the OpenSubtitles.com key was already included). Your own keys can still be entered and are used first.
+- If TMDB or OpenSubtitles.com stops accepting a key provided with Cinearr, a message explains it and leads to the settings to enter your own.
+- Changing the settings of a subtitle provider (a new key, an account) lifts its pause after repeated failures.
+
 ## [0.2.0]
 
 - Windows installer: choice of the folder, Start Menu and desktop shortcuts, `update.exe` to update and `uninstall.exe` to uninstall (with or without the data).

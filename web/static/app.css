@@ -44,6 +44,8 @@ code, .mono { font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monos
 #nav a.active { background: linear-gradient(90deg, rgba(240, 178, 74, .16), rgba(240, 178, 74, .03)); color: var(--accent); }
 #nav .count { margin-left: auto; background: var(--accent); color: #1a1205; border-radius: 99px; font-size: 11px; padding: 0 7px; font-weight: 700; }
 #side-status { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; padding: 0 8px; }
+#side-status a { color: #f1dfb4; text-decoration: none; }
+#side-status a:hover { color: var(--text); text-decoration: underline; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); margin-right: 6px; }
 .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(60, 207, 145, .6); }
 .dot.bad { background: var(--bad); }
