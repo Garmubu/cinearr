@@ -106,7 +106,7 @@ The release workflow (`.github/workflows/release.yml`):
 3. builds `Cinearr-Setup-X.Y.Z.exe` with Inno Setup (`packaging/windows/cinearr.iss`) on Windows, and the `.dmg` disk images (ad hoc signed) on macOS;
 4. creates the tag `v0.2.0` and publishes the GitHub release with every file and `checksums.txt`.
 
-The Windows updater (`update.exe`, `cmd/cinearr-update`) and the in-app update check look for the installer and `checksums.txt` in the latest release: keep the file names of `package.sh` and of the installer. When `CHANGELOG.md` has an entry `## [0.2.0]`, it becomes the text of the release. The workflow stops if the branch name is not a version or if the version already exists. The repository secret `OPENSUBTITLES_API_KEY`, when set, is built into the executables so that users only enter their OpenSubtitles.com account; it must never appear in the repository.
+The Windows updater (`update.exe`, `cmd/cinearr-update`) and the in-app update check look for the installer and `checksums.txt` in the latest release: keep the file names of `package.sh` and of the installer. When `CHANGELOG.md` has an entry `## [0.2.0]`, it becomes the text of the release. The workflow stops if the branch name is not a version or if the version already exists. The repository secrets `OPENSUBTITLES_API_KEY` and `TMDB_API_KEY`, when set, are built into the executables so that users need no key of their own; they must never appear in the repository. The *Built-in keys* step of the workflows (and the `keys` job of the CI) says which ones are set, without showing them. To build with keys locally: `OPENSUBTITLES_API_KEY=… TMDB_API_KEY=… make build`.
 
 ## License
 

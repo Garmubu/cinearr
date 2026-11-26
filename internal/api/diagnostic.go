@@ -15,10 +15,12 @@ import (
 	"sync"
 	"time"
 
+	"cinearr/internal/app"
 	"cinearr/internal/desktop"
 	"cinearr/internal/diag"
 	"cinearr/internal/dlclient"
 	"cinearr/internal/player"
+	"cinearr/internal/tmdb"
 )
 
 // redactSettings replaces secrets (and identifiers) in a JSON value.
@@ -65,7 +67,10 @@ func (s *Server) diagnosticInfo() string {
 	}
 	last, syncErr := s.App.SyncStatus()
 	fmt.Fprintf(&b, "Torrent client: %s %s, last contact %s, error: %q\n", dlclient.Name(st.Client.Kind), diag.RedactURL(st.Client.URL), last.Format(time.RFC3339), syncErr)
-	fmt.Fprintf(&b, "TMDB configured: %v (language %s)\n", st.TMDBKey != "", st.Language)
+	fmt.Fprintf(&b, "TMDB configured: %v, built-in key: %v (language %s)\n", st.TMDBKey != "", tmdb.BuiltinKey != "", st.Language)
+	for _, p := range app.KeyProblems(st) {
+		fmt.Fprintf(&b, "Built-in key refused: %s\n", p.Service)
+	}
 	fmt.Fprintf(&b, "Subtitle providers: %d\n", len(s.App.SubtitleProviders()))
 	fmt.Fprintf(&b, "Library: %s, series: %s, import %s\n", st.LibraryPath, st.SeriesPath, st.ImportMode)
 	fmt.Fprintf(&b, "Indexers: %d\n", len(st.Indexers))

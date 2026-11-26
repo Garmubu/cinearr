@@ -189,7 +189,15 @@ func fakeTMDB() http.Handler {
 			"crew": []map[string]string{{"name": "Christopher Nolan", "job": "Director"}}}
 		json.NewEncoder(w).Encode(d)
 	})
-	return mux
+	// a key named "revoked" is refused as TMDB refuses a suspended key
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("api_key") == "revoked" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"status_code":10,"status_message":"Suspended API key"}`))
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
 
 // ------------------------------------------------------------- tracker fake

@@ -16,3 +16,13 @@ jobs:
           go-version: stable
       - run: go vet ./...
       - run: go test ./...
+  # which application keys a release would build in (never shown); pull
+  # requests from forks have no access to the secrets and report none
+  keys:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: tools/release/keys.sh

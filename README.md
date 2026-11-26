@@ -45,7 +45,7 @@ Installing, updating and uninstalling are explained in the [user guide](docs/gui
 
 ## Getting started
 
-You need a free [TMDB](https://www.themoviedb.org/signup) API key, a torrent client with its web interface enabled, and a video player (or let Cinearr install one). At the first launch, a short wizard sets everything up: language, TMDB key, torrent client, folders, player, torrent sites and subtitles.
+You need a torrent client with its web interface enabled, and a video player (or let Cinearr install one). At the first launch, a short wizard sets everything up: language, torrent client, folders, player, torrent sites and subtitles. The film information (TMDB) and OpenSubtitles.com work without any key to create; you can still use your own.
 
 The **[user guide](docs/guide.md)** explains everything in detail: setup, everyday use, settings, safety and troubleshooting.
 

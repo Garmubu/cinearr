@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cinearr/internal/backoff"
@@ -34,12 +35,41 @@ var httpClient = proxy.Client(proxy.Metadata, http.Client{Timeout: 30 * time.Sec
 // only enter their OpenSubtitles.com username and password, as in Bazarr.
 var BuiltinOpenSubtitlesKey = ""
 
-// errOSRefused is returned when OpenSubtitles refuses the key or the account.
+// errOSRefused is returned when OpenSubtitles refuses the request (HTTP 401
+// or 403): the account, an expired session or the application key.
 var errOSRefused error = osRefused{}
 
 type osRefused struct{}
 
 func (osRefused) Error() string { return i18n.T("OpenSubtitles: API key or credentials refused") }
+
+// errOSKey is returned when OpenSubtitles refuses the application key given
+// by the user.
+var errOSKey error = osKey{}
+
+type osKey struct{}
+
+func (osKey) Error() string {
+	return i18n.T("OpenSubtitles.com: API key refused (check the key copied from opensubtitles.com › API consumers)")
+}
+
+// ErrBuiltinKeyRefused is returned when OpenSubtitles no longer accepts the
+// built-in application key.
+var ErrBuiltinKeyRefused error = osBuiltinKey{}
+
+type osBuiltinKey struct{}
+
+func (osBuiltinKey) Error() string {
+	return i18n.T("OpenSubtitles.com no longer accepts the key provided with Cinearr (it may have been revoked or blocked). To keep using it, create your own free key on opensubtitles.com › API consumers and enter it in Settings › Subtitles.")
+}
+
+// builtinRefused is set when OpenSubtitles refuses the built-in key, and
+// cleared by the next request it accepts.
+var builtinRefused atomic.Bool
+
+// BuiltinKeyRefused reports whether OpenSubtitles refused the built-in key
+// at the last request made with it.
+func BuiltinKeyRefused() bool { return builtinRefused.Load() }
 
 // OpenSubtitles needs an API key (free, opensubtitles.com/consumers);
 // username/password raise the daily download quota.
@@ -47,6 +77,8 @@ type OpenSubtitles struct {
 	APIKey   string
 	Username string
 	Password string
+	// Builtin is set when APIKey is BuiltinOpenSubtitlesKey.
+	Builtin bool
 	// IncludeAI keeps AI / machine translated subtitles (excluded by default
 	// as in Bazarr).
 	IncludeAI bool
@@ -75,7 +107,37 @@ func (o *OpenSubtitles) server() string {
 	return "https://api.opensubtitles.com/api/v1/"
 }
 
+// request calls the API. When it is refused, the key alone is checked to
+// tell a refused application key from a refused account or session.
 func (o *OpenSubtitles) request(ctx context.Context, method, path string, q url.Values, body any, out any) error {
+	err := o.send(ctx, method, path, q, body, out, true)
+	if err == nil {
+		if o.Builtin {
+			builtinRefused.Store(false)
+		}
+		return nil
+	}
+	if !errors.Is(err, errOSRefused) {
+		return err
+	}
+	// an expired session is dropped: the next request logs in again
+	o.mu.Lock()
+	o.token = ""
+	o.mu.Unlock()
+	var formats struct {
+		Data any `json:"data"`
+	}
+	if perr := o.send(ctx, http.MethodGet, "infos/formats", nil, nil, &formats, false); errors.Is(perr, errOSRefused) {
+		if o.Builtin {
+			builtinRefused.Store(true)
+			return ErrBuiltinKeyRefused
+		}
+		return errOSKey
+	}
+	return err
+}
+
+func (o *OpenSubtitles) send(ctx context.Context, method, path string, q url.Values, body any, out any, session bool) error {
 	u := o.server() + path
 	if len(q) > 0 {
 		u += "?" + q.Encode()
@@ -96,7 +158,7 @@ func (o *OpenSubtitles) request(ctx context.Context, method, path string, q url.
 		req.Header.Set("Content-Type", "application/json")
 	}
 	o.mu.Lock()
-	if o.token != "" {
+	if session && o.token != "" {
 		req.Header.Set("Authorization", "Bearer "+o.token)
 	}
 	o.mu.Unlock()
@@ -154,9 +216,6 @@ func (o *OpenSubtitles) Test(ctx context.Context) (string, error) {
 		Data any `json:"data"`
 	}
 	if err := o.request(ctx, http.MethodGet, "infos/formats", nil, nil, &formats); err != nil {
-		if errors.Is(err, errOSRefused) {
-			return "", i18n.New("OpenSubtitles.com: API key refused (check the key copied from opensubtitles.com › API consumers)")
-		}
 		return "", err
 	}
 	if o.Username == "" || o.Password == "" {

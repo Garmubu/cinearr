@@ -1,8 +1,10 @@
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
-# Application key for OpenSubtitles.com (optional): with it, users only
-# enter their account. Never commit it: pass it from the environment.
+# Application keys for OpenSubtitles.com and TMDB (optional): with them,
+# users need no key of their own. Never commit them: pass them from the
+# environment.
 OPENSUBTITLES_API_KEY ?=
-LDFLAGS := -s -w -X cinearr/internal/api.Version=$(VERSION) -X cinearr/internal/update.Version=$(VERSION) -X cinearr/internal/subtitles.BuiltinOpenSubtitlesKey=$(OPENSUBTITLES_API_KEY)
+TMDB_API_KEY ?=
+LDFLAGS := -s -w -X cinearr/internal/api.Version=$(VERSION) -X cinearr/internal/update.Version=$(VERSION) -X cinearr/internal/subtitles.BuiltinOpenSubtitlesKey=$(OPENSUBTITLES_API_KEY) -X cinearr/internal/tmdb.BuiltinKey=$(TMDB_API_KEY)
 
 .PHONY: build test lint e2e run release clean
 
