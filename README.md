@@ -31,15 +31,17 @@ Get the latest version from the [Releases](../../releases) page:
 
 | System | File |
 |---|---|
-| Windows (most PCs) | `cinearr_…_windows_amd64.zip` |
-| Windows on ARM | `cinearr_…_windows_arm64.zip` |
-| macOS (Apple Silicon / Intel) | `cinearr_…_darwin_arm64.tar.gz` / `…_darwin_amd64.tar.gz` |
-| Linux | `cinearr_…_linux_amd64.tar.gz` / `…_linux_arm64.tar.gz` |
+| Windows | `Cinearr-Setup-….exe`: installer with Start Menu shortcut, updater and uninstaller |
+| Windows (portable) | `Cinearr-…-windows-x64-portable.zip` (or `arm64`): unzip and run `cinearr.exe` |
+| macOS | `Cinearr-…-macos-apple-silicon.dmg` (M1 and later) or `…-macos-intel.dmg`: drag Cinearr to *Applications* |
+| Linux | `Cinearr-…-linux-x64.tar.gz` (or `arm64`): extract and run `./install.sh` |
 
-Extract the archive and run `cinearr`.
+The programs are not signed, so the first launch shows a warning:
 
-- **Windows** may show *“Windows protected your PC”*, because the program is not signed: click *More info › Run anyway*.
-- **macOS**: the first time, right-click the file › *Open*.
+- **Windows**: *“Windows protected your PC”*, click *More info › Run anyway*.
+- **macOS**: right-click Cinearr › *Open* (or *System Settings › Privacy & Security › Open Anyway*).
+
+Installing, updating and uninstalling are explained in the [user guide](docs/guide.md#install-update-and-uninstall).
 
 ## Getting started
 

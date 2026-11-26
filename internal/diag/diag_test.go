@@ -3,6 +3,7 @@ package diag
 import (
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -66,6 +67,7 @@ func TestRedactText(t *testing.T) {
 func TestLogIsRedacted(t *testing.T) {
 	dir := t.TempDir()
 	logger, closeFn := Setup(dir, false)
+	releaseCrashFile(t)
 	logger.Printf("client http://admin:secretpw@127.0.0.1:8080 password=hunter2")
 	closeFn()
 	b, err := os.ReadFile(filepath.Join(dir, LogFile))
@@ -80,6 +82,7 @@ func TestLogIsRedacted(t *testing.T) {
 func TestPanicCapture(t *testing.T) {
 	dir := t.TempDir()
 	_, closeFn := Setup(dir, false)
+	releaseCrashFile(t)
 	defer closeFn()
 	done := make(chan struct{})
 	Go("test", func() {
@@ -98,4 +101,10 @@ func TestPanicCapture(t *testing.T) {
 	if r, _ := CrashReport(); r != "" {
 		t.Fatal("crash not acknowledged")
 	}
+}
+
+// releaseCrashFile lets the test remove its folder: on Windows an open
+// file cannot be deleted, and the runtime keeps crash.log open.
+func releaseCrashFile(t *testing.T) {
+	t.Cleanup(func() { _ = debug.SetCrashOutput(nil, debug.CrashOptions{}) })
 }

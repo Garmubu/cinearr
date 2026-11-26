@@ -33,7 +33,12 @@ func main() {
 	noWindow := flag.Bool("no-window", false, "do not open a window (server mode)")
 	browser := flag.Bool("browser", false, "open in the default browser instead of a dedicated window")
 	debugMode := flag.Bool("debug", false, "detailed log: every request to the sites, TMDB and the torrent client (secrets hidden)")
+	version := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+	if *version {
+		fmt.Println(api.Version)
+		return
+	}
 
 	dir := *dataDir
 	if dir == "" {
