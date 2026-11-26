@@ -8,7 +8,7 @@ All notable changes for users are listed here. The format follows [Keep a Change
 - If TMDB or OpenSubtitles.com stops accepting a key provided with Cinearr, a message explains it and leads to the settings to enter your own.
 - Changing the settings of a subtitle provider (a new key, an account) lifts its pause after repeated failures.
 - Torrent client: switching to another client no longer erases the settings of the previous one; coming back to it brings back its address and account.
-- Player: the path of *Other player* is no longer filled in with the path of another player.
+- Player: the field of *Other player* is no longer filled in with a player found or installed by Cinearr; the player you chose there is kept when you try another one.
 
 ## [0.2.0]
 

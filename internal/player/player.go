@@ -181,6 +181,35 @@ func isFile(p string) bool {
 	return err == nil && !st.IsDir()
 }
 
+// OwnPath returns path if it is a player chosen by the user, or "" if it
+// is one of the players of the list found on the computer or installed by
+// Cinearr while such a player is selected: the field of "Other player" is
+// only ever filled in by the user. A path chosen with "Other player"
+// itself (kind custom or empty) is always kept.
+func OwnPath(kind, path, dataDir string) string {
+	if path == "" || kind == "" || kind == Custom {
+		return path
+	}
+	clean := filepath.Clean(path)
+	if rel, err := filepath.Rel(InstallDir(dataDir), clean); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	for _, p := range Players() {
+		if d := Detect(p.ID, dataDir); d != "" && samePath(d, clean) {
+			return ""
+		}
+	}
+	return path
+}
+
+func samePath(a, b string) bool {
+	a, b = filepath.Clean(a), filepath.Clean(b)
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
+}
+
 // Detect returns the path of an installed player, or "".
 func Detect(id, dataDir string) string {
 	for _, p := range candidates(id, dataDir) {
