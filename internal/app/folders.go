@@ -26,9 +26,6 @@ func systemFolders() []string {
 				out = append(out, p)
 			}
 		}
-		if p := os.Getenv("APPDATA"); p != "" {
-			out = append(out, filepath.Dir(p)) // the whole AppData folder
-		}
 		return out
 	case "darwin":
 		return []string{"/System", "/Library", "/Applications", "/bin", "/sbin", "/usr", "/etc", "/private/etc", "/dev", "/cores"}

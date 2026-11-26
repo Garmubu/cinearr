@@ -55,7 +55,8 @@ func Setup(dir string, debugMode bool) (*log.Logger, func()) {
 
 	// unrecovered panics and fatal runtime errors (Go 1.23+)
 	if f, err := os.OpenFile(filepath.Join(dir, CrashFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
-		_ = debug.SetCrashOutput(f, debug.CrashOptions{})
+		_ = debug.SetCrashOutput(f, debug.CrashOptions{}) // keeps its own copy of the handle
+		f.Close()
 	}
 
 	http.DefaultTransport = &Transport{Base: http.DefaultTransport}

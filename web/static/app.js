@@ -145,7 +145,7 @@ function statusBadge(m) {
   return `<span class="badge ${esc(cls)}">${esc(label)}</span>`;
 }
 const KIND = () => ({ added: t('added'), grabbed: t('grabbed'), imported: t('imported'), upgraded: t('upgraded'), failed: t('failed'), blocked: t('blocked'),
-  warning: t('warning'), scan: t('scan'), moved: t('folder'), cancelled: t('cancelled'), removed: t('removed'), deleted: t('deleted'), subtitle: t('subtitle'), played: t('played'), cleanup: t('cleanup') });
+  warning: t('warning'), scan: t('scan'), moved: t('folder'), refresh: t('pages'), cancelled: t('cancelled'), removed: t('removed'), deleted: t('deleted'), subtitle: t('subtitle'), played: t('played'), cleanup: t('cleanup') });
 const kindTag = (k) => `<span class="tag ${k === 'imported' || k === 'subtitle' ? 'g' : k === 'failed' || k === 'blocked' ? 'r' : ''}">${esc(KIND()[k] || k)}</span>`;
 function posterImg(path, title, sz) {
   return path ? `<img loading="lazy" src="${esc(IMG(path, sz))}" alt="">` : `<div class="noimg">${esc(title)}</div>`;
@@ -427,7 +427,7 @@ function viewLibrary(v, arg) {
     <div class="page-head"><h1>${esc(t('Library'))}</h1><span class="sub" id="lib-count"></span><div class="spacer"></div>
       <button data-act="scan" id="scan-btn" title="${esc(t('Reads the films and series folders again: files added, moved or deleted by hand are taken into account'))}">${ICON.refresh}${esc(t('Update the library'))}</button>
       <div class="searchbar" style="max-width:300px">${ICON.discover}<input id="lib-text" placeholder="${esc(t('Filter'))}" value="${esc(libText)}"></div></div>
-    <div id="scan-report"></div>
+    <div id="meta-progress"></div><div id="scan-report"></div>
     <div class="tabs" role="tablist">
       <button class="tab ${libKind === 'films' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'films'}" data-act="lib-kind" data-k="films">${ICON.film}${esc(t('Films'))} <span class="muted">${state.movies.length}</span></button>
       <button class="tab ${libKind === 'series' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'series'}" data-act="lib-kind" data-k="series">${ICON.tv}${esc(t('Series'))} <span class="muted">${state.series.length}</span></button></div>
@@ -496,6 +496,9 @@ async function scanFinished() {
 function drawScan() {
   const btn = $('#scan-btn');
   const running = !!state.status?.scanning;
+  const meta = state.status?.metadata;
+  const mbox = $('#meta-progress');
+  if (mbox) mbox.innerHTML = meta?.running ? `<div class="callout"><span class="spinner"></span> ${esc(t('Reloading the film and series pages in the new language: {done} of {total}', { done: meta.done, total: meta.total }))}</div>` : '';
   if (btn) {
     btn.disabled = running;
     btn.innerHTML = running ? `<span class="spinner"></span>${esc(t('Reading the folders…'))}` : `${ICON.refresh}${esc(t('Update the library'))}`;
@@ -1517,6 +1520,8 @@ function drawSettingsTab() {
         <div class="row" style="flex-wrap:wrap;margin:6px 0 14px"><a class="btn" href="#/activity" data-act="show-log">${ICON.activity}${esc(t('Show the log'))}</a><button data-act="open-logs">${ICON.folder}${esc(t('Open the folder'))}</button>
           <a class="btn" href="/api/diagnostic" download>${ICON.downloads}${esc(t('Export a diagnostic'))}</a></div>
         <p class="muted" style="margin-bottom:0">${esc(t('This product uses the TMDB API but is not endorsed or certified by TMDB. Indexer definitions: Prowlarr project.'))}</p></div>
+        <div class="card"><h2>${esc(t('Version'))}</h2>
+        <div class="row" style="flex-wrap:wrap"><span>Cinearr ${esc(state.status?.version || '')}</span><button class="small" data-act="check-update">${ICON.refresh}${esc(t('Check for updates'))}</button><span id="update-result" class="muted"></span></div></div>
         <div class="card danger-zone"><h2>${esc(t('Reset'))}</h2>
         <p class="muted">${esc(t('Erases every setting and starts the setup wizard again, to configure Cinearr from scratch. Your films and series stay in the library and no file is deleted.'))}</p>
         <button class="danger" data-act="reset-app">${ICON.refresh}${esc(t('Reset Cinearr'))}</button></div>`;
@@ -1530,6 +1535,7 @@ function drawSettingsTab() {
 async function saveSettings(quiet) {
   readTab();
   const before = state.settings?.uiLanguage || 'en';
+  const beforePages = state.settings?.language;
   const saved = await api('PUT', '/settings', edit);
   state.settings = saved;
   edit = JSON.parse(JSON.stringify(saved));
@@ -1542,6 +1548,9 @@ async function saveSettings(quiet) {
     viewSettings($('#view'), settingsTab);
   } else if (!quiet) {
     drawSettingsTab();
+  }
+  if (beforePages && saved.language !== beforePages && ((state.movies || []).length || (state.series || []).length)) {
+    toast(t('The film and series pages of your library are being reloaded in the new language.'), 'ok');
   }
   refreshStatus();
 }
@@ -1991,6 +2000,19 @@ const actions = {
   },
   'reset-app': () => resetModal(),
   scan: () => startScan(),
+  'check-update': async () => {
+    const out = $('#update-result');
+    out.innerHTML = '<span class="spinner"></span>';
+    try {
+      const r = await api('GET', '/update');
+      if (!r.newer) { out.innerHTML = `<span class="ok-text">✓ ${esc(t('Cinearr is up to date ({version}).', { version: r.current }))}</span>`; return; }
+      out.innerHTML = `<span class="warn-text">${esc(t('Version {version} is available.', { version: r.latest }))}</span>
+        ${r.installer ? `<button class="small primary" data-act="run-update">${esc(t('Update now'))}</button>` : (safeUrl(r.url) ? `<a class="btn small" href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener">${esc(t('Download'))}</a>` : '')}`;
+    } catch (e) { out.innerHTML = `<span class="bad-text">${esc(e.message)}</span>`; }
+  },
+  'run-update': async () => {
+    try { await api('POST', '/update'); toast(t('The updater is starting: follow its instructions.'), 'ok'); } catch (e) { fail(e); }
+  },
   'proxy-test': async () => {
     const out = $('#proxy-test');
     readTab();
