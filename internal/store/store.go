@@ -44,8 +44,10 @@ type SubtitleSettings struct {
 type PlayerSettings struct {
 	// Kind is the chosen player (vlc, mpc-hc, mpv), "custom" for Path, or
 	// "" to use the first one found.
-	Kind       string `json:"kind"`
-	Path       string `json:"path"` // executable for "custom" (or a forced path)
+	Kind string `json:"kind"`
+	// Path is the executable chosen by the user for "custom" (or with an
+	// empty Kind); it is cleared when a player of the list is chosen.
+	Path       string `json:"path"`
 	Fullscreen bool   `json:"fullscreen"`
 	AudioLang  string `json:"audioLang"` // e.g. "fre,fra,fr,eng,en"
 	ExtraArgs  string `json:"extraArgs"`
@@ -68,6 +70,9 @@ type Settings struct {
 	Language string            `json:"language"`
 	TMDBKey  string            `json:"tmdbKey"`
 	Client   dlclient.Settings `json:"downloadClient"`
+	// OtherClients keeps the settings of the torrent clients that are not
+	// selected (by kind), so that choosing one again brings them back.
+	OtherClients map[string]dlclient.Settings `json:"otherClients,omitempty"`
 	// LegacyQBit is the qBittorrent block of versions before the choice of
 	// client; it is migrated on load.
 	LegacyQBit  *dlclient.Settings `json:"qbit,omitempty"`
@@ -134,6 +139,19 @@ func (st *Settings) migrate() {
 	if st.Client.Kind == "" {
 		st.Client.Kind = dlclient.QBittorrent
 	}
+	// the selected client is in Client, never in OtherClients; unknown
+	// kinds are dropped
+	for kind := range st.OtherClients {
+		if kind == st.Client.Kind || !knownClient(kind) {
+			delete(st.OtherClients, kind)
+		}
+	}
+	// the path of "Other player" is the user's own choice: with a player of
+	// the list (VLC, MPC-HC, mpv) it is not kept, so that choosing "Other
+	// player" later starts from an empty field
+	if st.Player.Kind != "" && st.Player.Kind != "custom" {
+		st.Player.Path = ""
+	}
 	// versions before the choice of language were in French only
 	if st.SetupDone && st.UILanguage == "" {
 		st.UILanguage = "fr"
@@ -151,6 +169,15 @@ func (st *Settings) migrate() {
 	if sub.Providers == nil {
 		sub.Providers = []subtitles.Config{}
 	}
+}
+
+func knownClient(kind string) bool {
+	for _, c := range dlclient.Clients {
+		if c.ID == kind {
+			return true
+		}
+	}
+	return false
 }
 
 // Store holds the persisted state.

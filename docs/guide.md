@@ -150,6 +150,10 @@ Everything can be changed later in *Settings*.
 
 Settings are grouped in tabs: *General*, *Torrent client*, *Library*, *Quality*, *Subtitles*, *Player*, *Data and diagnostics*.
 
+### Torrent client
+
+Cinearr uses the client selected last. The address, account and folder of each client are kept: if you select another client, then come back to the first one, its settings are still there, even after saving. A client you never configured starts from its default address.
+
 ### Languages
 
 *Settings › General* has two languages: the one of the interface and the one of the film and series pages (titles, summaries, episode names, from TMDB). When you change the language of the interface, the pages follow it if they were in the same language. When the language of the pages changes, every film and series of your library is reloaded in the background in the new language, with no restart; the *Library* page shows the progress.
@@ -218,7 +222,7 @@ A key you entered is always used before the built-in one. If you build Cinearr y
 | mpv | Windows, macOS, Linux | No: `winget install shinchiro.mpv`, `brew install --cask mpv` or your package manager |
 | Other | — | Any program that takes the path of the video as argument |
 
-Players installed by Cinearr live in its data folder, in portable mode: they change neither the registry nor an existing installation.
+Players installed by Cinearr live in its data folder, in portable mode: they change neither the registry nor an existing installation. The path of *Other player* is the one you choose: it is never filled in for you, and choosing a player of the list clears it.
 
 ### Data folder
 

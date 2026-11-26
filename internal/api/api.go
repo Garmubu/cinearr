@@ -473,6 +473,9 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) (any, erro
 	if v.Indexers == nil {
 		v.Indexers = cur.Indexers // the settings page does not edit indexers
 	}
+	if v.OtherClients == nil {
+		v.OtherClients = cur.OtherClients // sent by an older interface
+	}
 	if v.Port == 0 {
 		v.Port = cur.Port
 	}

@@ -1416,7 +1416,7 @@ async function viewSettings(v, tab) {
     state.qualities = q;
     edit = JSON.parse(JSON.stringify(s));
   } catch (e) { v.innerHTML = `<div class="page"><p class="bad-text">${esc(e.message)}</p></div>`; return; }
-  dcEdit = edit.downloadClient;
+  editClients(edit);
   plEdit = edit.player;
   subEdit = edit.subtitles;
   v.innerHTML = `<div class="page"><div class="page-head"><h1>${esc(t('Settings'))}</h1><div class="spacer"></div><button class="primary" data-act="save-settings">${esc(t('Save'))}</button></div>
@@ -1567,7 +1567,7 @@ async function saveSettings(quiet) {
   const saved = await api('PUT', '/settings', edit);
   state.settings = saved;
   edit = JSON.parse(JSON.stringify(saved));
-  dcEdit = edit.downloadClient;
+  editClients(edit);
   plEdit = edit.player;
   subEdit = edit.subtitles;
   if ((saved.uiLanguage || 'en') !== before) {
@@ -1596,6 +1596,14 @@ const RADARR_PROFILES = {
 /* ----------------------------------------------------------- torrent client */
 let CLIENTS = [];
 let dcEdit = null; // client being edited (settings page or wizard draft)
+let dcOthers = {}; // settings of the clients not selected, by kind (kept when switching)
+
+// editClients starts editing the torrent client of a settings object.
+function editClients(s) {
+  dcEdit = s.downloadClient;
+  if (!s.otherClients) s.otherClients = {};
+  dcOthers = s.otherClients;
+}
 async function loadClients() {
   if (!CLIENTS.length) {
     try { CLIENTS = await api('GET', '/download-clients'); } catch (e) { CLIENTS = [{ id: 'qbittorrent', name: 'qBittorrent', defaultUrl: 'http://127.0.0.1:8080', username: true, savePath: true, sequential: true, timeLimit: true, help: '' }]; }
@@ -1642,14 +1650,19 @@ function readClientForm(c) {
   return c;
 }
 
+// switchClient selects another torrent client. The settings of the one
+// left are kept (and saved with the others), so that coming back to it
+// brings back its address and account; a client never configured starts
+// from its default address, with the category and seeding limits.
 function switchClient(kind) {
   const c = readClientForm(dcEdit);
-  const old = clientInfo(c.kind);
-  const next = clientInfo(kind);
-  if (!c.url || c.url === old.defaultUrl) c.url = next.defaultUrl;
-  if (!next.username) c.username = '';
-  if (c.kind !== kind) c.password = '';
-  c.kind = kind;
+  if (c.kind === kind) return;
+  dcOthers[c.kind] = { ...c };
+  const next = dcOthers[kind] ? { ...dcOthers[kind] } :
+    { ...c, url: clientInfo(kind).defaultUrl || '', username: '', password: '', savePath: '' };
+  delete dcOthers[kind];
+  for (const k of Object.keys(c)) delete c[k];
+  Object.assign(c, next, { kind });
   const box = $('#dc-form');
   if (box) box.innerHTML = clientForm(c, state.view !== 'setup');
 }
@@ -1846,7 +1859,7 @@ async function viewSetup(v) {
   if (!draft) draft = await api('GET', '/settings');
   await loadClients();
   const s = draft;
-  dcEdit = s.downloadClient;
+  editClients(s);
   plEdit = s.player;
   subEdit = s.subtitles;
   if (setupStep >= SETUP_STEPS.length) setupStep = 0;
