@@ -2,7 +2,12 @@
   "RT_GROUP_ICON": {
     "APP": {
       "0000": [
-        "../icons/cinearr.ico"
+        "../icons/icon-256.png",
+        "../icons/icon-128.png",
+        "../icons/icon-64.png",
+        "../icons/icon-48.png",
+        "../icons/icon-32.png",
+        "../icons/icon-16.png"
       ]
     }
   },
