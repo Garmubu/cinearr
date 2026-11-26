@@ -40,6 +40,44 @@ func TestMigrateQBitSettings(t *testing.T) {
 	}
 }
 
+// The settings of the clients that are not selected are kept; the path of
+// "Other player" is only kept while "Other player" is chosen.
+func TestOtherClientsAndPlayerPath(t *testing.T) {
+	st, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := st.Settings()
+	qbit := dlclient.Settings{Kind: dlclient.QBittorrent, URL: "http://127.0.0.1:8080", Username: "admin", Password: "pw", Category: "cinearr"}
+	s.Client = dlclient.Settings{Kind: dlclient.Transmission, URL: "http://127.0.0.1:9091"}
+	s.OtherClients = map[string]dlclient.Settings{
+		dlclient.QBittorrent:  qbit,
+		dlclient.Transmission: {Kind: dlclient.Transmission, URL: "stale"}, // the selected one
+		"unknown":             {URL: "x"},
+	}
+	s.Player = PlayerSettings{Kind: "vlc", Path: "/data/players/vlc/vlc"}
+	if err := st.SaveSettings(s); err != nil {
+		t.Fatal(err)
+	}
+	got := st.Settings()
+	if len(got.OtherClients) != 1 || got.OtherClients[dlclient.QBittorrent] != qbit {
+		t.Fatalf("other clients = %+v", got.OtherClients)
+	}
+	if got.Client.URL != "http://127.0.0.1:9091" {
+		t.Fatalf("selected client = %+v", got.Client)
+	}
+	if got.Player.Path != "" {
+		t.Fatalf("path of a listed player kept: %q", got.Player.Path)
+	}
+	got.Player = PlayerSettings{Kind: "custom", Path: "/opt/player"}
+	if err := st.SaveSettings(got); err != nil {
+		t.Fatal(err)
+	}
+	if p := st.Settings().Player.Path; p != "/opt/player" {
+		t.Fatalf("custom path = %q", p)
+	}
+}
+
 func TestMigrateSubtitleSettings(t *testing.T) {
 	dir := t.TempDir()
 	old := `{"setupDone":true,"subtitles":{"auto":true,"languages":["fr"],"openSubtitlesUser":"garm","openSubtitlesPass":"pw","subdlKey":"sk"}}`
