@@ -105,6 +105,7 @@ The release workflow (`.github/workflows/release.yml`):
 2. builds every file with `tools/release/package.sh` (portable Windows archives, Linux archives with `install.sh`, `update.sh` and `uninstall.sh`, `Cinearr.app`, and the files of the Windows installer), with the icons and version information made by `go-winres` from `packaging/windows/winres-*.json`;
 3. builds `Cinearr-Setup-X.Y.Z.exe` with Inno Setup (`packaging/windows/cinearr.iss`) on Windows, and the `.dmg` disk images (ad hoc signed) on macOS;
 4. creates the tag `v0.2.0` and publishes the GitHub release with every file and `checksums.txt`.
+5. deletes the `release/0.2.0` branch: only the tag and the release remain. If any step fails, the branch is kept, so a fix can be pushed to it or the workflow run again.
 
 The Windows updater (`update.exe`, `cmd/cinearr-update`) and the in-app update check look for the installer and `checksums.txt` in the latest release: keep the file names of `package.sh` and of the installer. When `CHANGELOG.md` has an entry `## [0.2.0]`, it becomes the text of the release. The workflow stops if the branch name is not a version or if the version already exists. The repository secrets `OPENSUBTITLES_API_KEY` and `TMDB_API_KEY`, when set, are built into the executables so that users need no key of their own; they must never appear in the repository. The *Built-in keys* step of the workflows (and the `keys` job of the CI) says which ones are set, without showing them. To build with keys locally: `OPENSUBTITLES_API_KEY=… TMDB_API_KEY=… make build`.
 
