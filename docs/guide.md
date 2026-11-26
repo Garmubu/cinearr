@@ -222,7 +222,7 @@ A key you entered is always used before the built-in one. If you build Cinearr y
 | mpv | Windows, macOS, Linux | No: `winget install shinchiro.mpv`, `brew install --cask mpv` or your package manager |
 | Other | — | Any program that takes the path of the video as argument |
 
-Players installed by Cinearr live in its data folder, in portable mode: they change neither the registry nor an existing installation. The path of *Other player* is the one you choose: it is never filled in for you, and choosing a player of the list clears it.
+Players installed by Cinearr live in its data folder, in portable mode: they change neither the registry nor an existing installation. The path of *Other player* is the one you choose: Cinearr never fills it in with a player it found or installed. It is kept when you select another player, even after saving, so you can come back to it.
 
 ### Data folder
 

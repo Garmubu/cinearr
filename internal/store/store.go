@@ -45,8 +45,10 @@ type PlayerSettings struct {
 	// Kind is the chosen player (vlc, mpc-hc, mpv), "custom" for Path, or
 	// "" to use the first one found.
 	Kind string `json:"kind"`
-	// Path is the executable chosen by the user for "custom" (or with an
-	// empty Kind); it is cleared when a player of the list is chosen.
+	// Path is the executable the user chose for "custom" (used with an
+	// empty Kind too). It is kept while another player is selected, so the
+	// user can come back to it; it is never filled in by Cinearr (see
+	// player.OwnPath).
 	Path       string `json:"path"`
 	Fullscreen bool   `json:"fullscreen"`
 	AudioLang  string `json:"audioLang"` // e.g. "fre,fra,fr,eng,en"
@@ -145,12 +147,6 @@ func (st *Settings) migrate() {
 		if kind == st.Client.Kind || !knownClient(kind) {
 			delete(st.OtherClients, kind)
 		}
-	}
-	// the path of "Other player" is the user's own choice: with a player of
-	// the list (VLC, MPC-HC, mpv) it is not kept, so that choosing "Other
-	// player" later starts from an empty field
-	if st.Player.Kind != "" && st.Player.Kind != "custom" {
-		st.Player.Path = ""
 	}
 	// versions before the choice of language were in French only
 	if st.SetupDone && st.UILanguage == "" {

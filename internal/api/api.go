@@ -476,6 +476,9 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) (any, erro
 	if v.OtherClients == nil {
 		v.OtherClients = cur.OtherClients // sent by an older interface
 	}
+	// the path of "Other player" stays the user's own, even while another
+	// player is selected; a player of the list is never kept there
+	v.Player.Path = player.OwnPath(v.Player.Kind, strings.TrimSpace(v.Player.Path), s.App.Store.Dir())
 	if v.Port == 0 {
 		v.Port = cur.Port
 	}

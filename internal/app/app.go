@@ -17,6 +17,7 @@ import (
 	"cinearr/internal/i18n"
 	"cinearr/internal/indexer"
 	"cinearr/internal/model"
+	"cinearr/internal/player"
 	"cinearr/internal/proxy"
 	"cinearr/internal/store"
 	"cinearr/internal/subtitles"
@@ -55,6 +56,16 @@ type App struct {
 // New creates the service.
 func New(st *store.Store, logger *log.Logger) *App {
 	proxy.Set(st.Settings().Proxy)
+	// a path of "Other player" that is in fact a player of the list (left
+	// by an older version) is removed, so the field starts empty
+	if s := st.Settings(); s.Player.Path != "" {
+		if own := player.OwnPath(s.Player.Kind, s.Player.Path, st.Dir()); own != s.Player.Path {
+			s.Player.Path = own
+			if err := st.SaveSettings(s); err != nil {
+				logger.Printf("[player] settings not saved: %v", err)
+			}
+		}
+	}
 	return &App{
 		Store:      st,
 		Indexer:    indexer.NewManager(indexer.NewRepository(st.Dir())),

@@ -40,8 +40,8 @@ func TestMigrateQBitSettings(t *testing.T) {
 	}
 }
 
-// The settings of the clients that are not selected are kept; the path of
-// "Other player" is only kept while "Other player" is chosen.
+// The settings of the clients that are not selected are kept, and so is
+// the path of "Other player" while another player is selected.
 func TestOtherClientsAndPlayerPath(t *testing.T) {
 	st, err := Open(t.TempDir())
 	if err != nil {
@@ -55,7 +55,7 @@ func TestOtherClientsAndPlayerPath(t *testing.T) {
 		dlclient.Transmission: {Kind: dlclient.Transmission, URL: "stale"}, // the selected one
 		"unknown":             {URL: "x"},
 	}
-	s.Player = PlayerSettings{Kind: "vlc", Path: "/data/players/vlc/vlc"}
+	s.Player = PlayerSettings{Kind: "vlc", Path: "/opt/my-player"}
 	if err := st.SaveSettings(s); err != nil {
 		t.Fatal(err)
 	}
@@ -66,15 +66,8 @@ func TestOtherClientsAndPlayerPath(t *testing.T) {
 	if got.Client.URL != "http://127.0.0.1:9091" {
 		t.Fatalf("selected client = %+v", got.Client)
 	}
-	if got.Player.Path != "" {
-		t.Fatalf("path of a listed player kept: %q", got.Player.Path)
-	}
-	got.Player = PlayerSettings{Kind: "custom", Path: "/opt/player"}
-	if err := st.SaveSettings(got); err != nil {
-		t.Fatal(err)
-	}
-	if p := st.Settings().Player.Path; p != "/opt/player" {
-		t.Fatalf("custom path = %q", p)
+	if got.Player.Path != "/opt/my-player" {
+		t.Fatalf("own player lost while VLC is selected: %q", got.Player.Path)
 	}
 }
 

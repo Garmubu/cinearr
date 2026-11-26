@@ -75,6 +75,39 @@ func TestFindCustom(t *testing.T) {
 	}
 }
 
+// OwnPath keeps the player chosen by the user, even while another player
+// is selected, and drops the path of a player of the list.
+func TestOwnPath(t *testing.T) {
+	dir := t.TempDir()
+	mine := filepath.Join(t.TempDir(), "my-player")
+	installed := filepath.Join(InstallDir(dir), "vlc", "vlc.exe")
+	if got := OwnPath(VLC, mine, dir); got != mine {
+		t.Fatalf("own player dropped while VLC is selected: %q", got)
+	}
+	if got := OwnPath(VLC, installed, dir); got != "" {
+		t.Fatalf("player installed by Cinearr kept: %q", got)
+	}
+	// chosen with "Other player" itself: always kept
+	if got := OwnPath(Custom, installed, dir); got != installed {
+		t.Fatalf("custom choice dropped: %q", got)
+	}
+	if got := OwnPath("", mine, dir); got != mine {
+		t.Fatalf("legacy custom path dropped: %q", got)
+	}
+	// a player found on the computer
+	bin := t.TempDir()
+	exe := filepath.Join(bin, exeNames(VLC)[0])
+	if err := os.WriteFile(exe, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	if found := Detect(VLC, dir); found != "" {
+		if got := OwnPath(MPV, found, dir); got != "" {
+			t.Fatalf("detected player kept: %q", got)
+		}
+	}
+}
+
 func makeZip(t *testing.T, files map[string]string) []byte {
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
