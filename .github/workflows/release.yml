@@ -6,6 +6,7 @@ name: Release
 #   2. build of every file (tools/release/package.sh);
 #   3. Windows installer (Inno Setup) and macOS disk images, on their systems;
 #   4. tag vX.Y.Z and GitHub release with every file and checksums.txt.
+#   5. deletion of the release/X.Y.Z branch (kept if anything failed).
 on:
   push:
     branches: ['release/*']
@@ -158,3 +159,10 @@ jobs:
           notes=(--generate-notes)
           if [ -s notes.md ]; then notes=(--notes-file notes.md); fi
           gh release create "v$v" out/* --target "$GITHUB_SHA" --title "Cinearr $v" "${notes[@]}"
+      # everything passed and the release is published: the tag vX.Y.Z keeps
+      # the code, so the release/X.Y.Z branch is no longer needed (after a
+      # failure it stays, to push a fix or run the workflow again)
+      - name: Delete the release branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$GITHUB_REF_NAME"
