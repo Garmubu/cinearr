@@ -2011,6 +2011,10 @@ function subConfigModal(cfg, index) {
 }
 
 /* -------------------------------------------------------------------- setup */
+// The motto of the author, shown on the welcome screen: kept in French in
+// every language of the interface (also on the first page of the Windows
+// installer, packaging/windows/cinearr.iss).
+const MOTTO = '«\u00a0Pour que la culture soit accessible au plus grand nombre\u00a0»';
 let setupStep = (() => { try { return +localStorage.getItem('cinearr.setupStep') || 0; } catch (e) { return 0; } })();
 function rememberStep() { try { localStorage.setItem('cinearr.setupStep', String(setupStep)); } catch (e) { /* ignore */ } }
 let draft = null;
@@ -2032,7 +2036,9 @@ async function viewSetup(v) {
   switch (step) {
     case 'welcome':
       body = `<div class="choice lang-choice" role="radiogroup" aria-label="Language">${UI_LANGUAGES.map(([c, n]) => `<button type="button" role="radio" aria-checked="${c === LANG}" class="choice-item ${c === LANG ? 'active' : ''}" data-act="pick-lang" data-lang="${c}">${ICON.globe}${esc(n)}</button>`).join('')}</div>
-        <h1>${esc(t('Welcome to Cinearr'))}</h1><p class="lead">${esc(t('Search a film or a series: Cinearr finds the best release on your sites, has your torrent client download it, stores it in your library, fetches the subtitles and opens it in your video player.'))}</p>
+        <h1>${esc(t('Welcome to Cinearr'))}</h1>
+        <p class="motto" lang="fr">${esc(MOTTO)}</p>
+        <p class="lead">${esc(t('Search a film or a series: Cinearr finds the best release on your sites, has your torrent client download it, stores it in your library, fetches the subtitles and opens it in your video player.'))}</p>
         <div class="callout">${esc(t('A few minutes of setup:'))}<ol>${state.status?.tmdbBuiltin ? '' : `<li>${esc(t('a free TMDB key (film information)'))}</li>`}<li>${esc(t('access to your torrent client (qBittorrent, Transmission, Deluge or µTorrent)'))}</li><li>${esc(t('the folders of your films and series'))}</li><li>${esc(t('the video player'))}</li><li>${esc(t('your sites (indexers)'))}</li><li>${esc(t('the subtitle providers (optional)'))}</li></ol></div>`;
       break;
     case 'tmdb':

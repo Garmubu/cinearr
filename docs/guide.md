@@ -82,7 +82,7 @@ Extract the archive and run `./install.sh`: it asks for the folder (by default `
 ## First launch
 
 
-A wizard asks, step by step, for:
+The welcome screen opens on the motto of the project, *« Pour que la culture soit accessible au plus grand nombre »* (“so that culture is within everyone's reach”). A wizard then asks, step by step, for:
 
 1. the **language** of the interface (the film pages follow it);
 2. the **torrent client** (with a *Test* button);

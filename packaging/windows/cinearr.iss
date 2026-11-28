@@ -185,6 +185,24 @@ begin
     Result := Dir;
 end;
 
+{ The motto of the author, in italics on the first page of the wizard
+  (the choice of the folder), in French whatever the language chosen. }
+procedure InitializeWizard();
+var
+  Motto: TNewStaticText;
+begin
+  Motto := TNewStaticText.Create(WizardForm);
+  Motto.Parent := WizardForm.SelectDirPage;
+  Motto.Caption := '« Pour que la culture soit accessible au plus grand nombre »';
+  Motto.AutoSize := False;
+  Motto.WordWrap := True;
+  Motto.Font.Style := [fsItalic];
+  Motto.Left := WizardForm.DirEdit.Left;
+  Motto.Width := WizardForm.SelectDirPage.Width - Motto.Left;
+  Motto.Top := WizardForm.DirEdit.Top + WizardForm.DirEdit.Height + ScaleY(28);
+  Motto.Height := ScaleY(36);
+end;
+
 function InitializeSetup(): Boolean;
 var
   Dir, Version, UpdateExe, UninstallExe: String;
