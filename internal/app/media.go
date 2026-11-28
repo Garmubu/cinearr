@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"cinearr/internal/backoff"
+	"cinearr/internal/desktop"
 	"cinearr/internal/i18n"
 	"cinearr/internal/model"
 	"cinearr/internal/parser"
@@ -486,8 +487,13 @@ func (a *App) launch(file string, subs []string, title string, choice SubtitleCh
 			o.Subtitle = subs[choice.Index]
 		}
 	}
-	_, err = player.Play(exe, file, o)
-	return err
+	cmd, err := player.Play(exe, file, o)
+	if err != nil {
+		return err
+	}
+	// started by a click of the user: its window comes to the front
+	desktop.BringToFront(cmd.Process.Pid)
+	return nil
 }
 
 // videosIn lists the videos of a file or folder.

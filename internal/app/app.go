@@ -268,6 +268,7 @@ func (a *App) Run(ctx context.Context) {
 				// the folders are read at each launch: files added, moved or
 				// deleted by hand while Cinearr was closed are taken into account
 				a.StartScan()
+				diag.Go("original posters", a.originalPosters)
 			}
 		}
 		if time.Since(a.lastRecycle) > 6*time.Hour {

@@ -292,10 +292,96 @@ function checkCrash() {
   m.el.querySelector('[data-dl]').addEventListener('click', () => toast(t('Diagnostic saved in your Downloads folder')));
 }
 
+// ---- settings not saved
+// settingsDirty compares the edited settings (with the fields of the visible
+// tab) to the saved ones. Empty values ('', [], {}, null) count as absent
+// and the allowed qualities as a set, so that merely showing a tab is not a
+// change.
+function canonical(v) {
+  if (Array.isArray(v)) {
+    const out = v.map(canonical);
+    return out.every((x) => typeof x === 'number') ? out.sort((a, b) => a - b) : out;
+  }
+  if (v && typeof v === 'object') {
+    const out = {};
+    Object.keys(v).sort().forEach((k) => {
+      const x = canonical(v[k]);
+      const empty = x === '' || x == null || (Array.isArray(x) && !x.length) || (typeof x === 'object' && !Array.isArray(x) && !Object.keys(x).length);
+      if (!empty) out[k] = x;
+    });
+    return out;
+  }
+  return v;
+}
+function settingsDirty() {
+  if (state.view !== 'settings' || !edit || !state.settings || !$('#set-body')) return false;
+  readTab();
+  return JSON.stringify(canonical(edit)) !== JSON.stringify(canonical(state.settings));
+}
+
+let unsavedPending = ''; // where the user wanted to go
+let leavingSettings = false; // the changes were saved or discarded: the next route lets go
+function showUnsaved() {
+  let box = $('#unsaved');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'unsaved';
+    box.className = 'unsaved';
+    box.setAttribute('role', 'alert');
+    box.innerHTML = `<div class="unsaved-text">${esc(t('You have unsaved changes'))}</div>
+      <div class="row"><button class="small" data-unsaved="discard">${esc(t('Discard the changes'))}</button>
+      <button class="small primary" data-unsaved="save">${esc(t('Save'))}</button></div>`;
+    $('#toasts').prepend(box);
+    box.querySelector('[data-unsaved=save]').addEventListener('click', async (e) => {
+      e.currentTarget.disabled = true;
+      try { await saveSettings(true); toast(t('Settings saved'), 'ok'); leaveSettings(); } catch (err) { fail(err); e.currentTarget.disabled = false; }
+    });
+    box.querySelector('[data-unsaved=discard]').addEventListener('click', () => {
+      edit = JSON.parse(JSON.stringify(state.settings));
+      editClients(edit);
+      plEdit = edit.player;
+      subEdit = edit.subtitles;
+      drawSettingsTab(); // the fields show the saved values again
+      leaveSettings();
+    });
+    return;
+  }
+  // a new attempt: the box shakes (not with reduced motion, see app.css)
+  box.classList.remove('shake');
+  void box.offsetWidth;
+  box.classList.add('shake');
+}
+function hideUnsaved() { $('#unsaved')?.remove(); }
+// leaveSettings goes where the user wanted once the changes are saved or
+// discarded.
+function leaveSettings() {
+  hideUnsaved();
+  const to = unsavedPending;
+  unsavedPending = '';
+  if (to && to !== location.hash) {
+    leavingSettings = true;
+    location.hash = to;
+  } else drawSettingsTab();
+}
+
+let routeHash = location.hash; // hash of the page shown, restored when leaving is refused
 function route() {
   const h = location.hash.replace(/^#\/?/, '') || 'discover';
   const [view, arg] = h.split('/');
   if (state.status && !state.status.setupDone && view !== 'setup') { location.hash = '#/setup'; return; }
+  // leaving the settings (or opening them again, which reloads them) with
+  // changes not saved: the page stays; the tabs of the settings keep the
+  // changes and do not go through here
+  const leaving = leavingSettings;
+  leavingSettings = false;
+  if (!leaving && state.view === 'settings' && settingsDirty()) {
+    unsavedPending = location.hash;
+    history.replaceState(null, '', routeHash);
+    showUnsaved();
+    return;
+  }
+  hideUnsaved();
+  routeHash = location.hash;
   state.view = view;
   state.refresh = null;
   historyCache.at = 0;
@@ -1797,6 +1883,7 @@ async function installPlayer(id) {
   try {
     await api('POST', `/players/${encodeURIComponent(id)}/install`);
     plEdit.kind = id;
+    if (state.settings?.player) state.settings.player.kind = id; // the server chooses it once installed
     drawPlayers();
     const wait = async () => {
       const r = await api('GET', '/players').catch(() => null);
@@ -2202,7 +2289,7 @@ const actions = {
     try { await api('POST', '/indexers', c); } catch (e) { fail(e); }
   },
   'act-tab': (el) => { activityTab = el.dataset.t; viewActivity($('#view')); },
-  'show-log': () => { activityTab = 'log'; location.hash = '#/activity'; viewActivity($('#view')); },
+  'show-log': () => { activityTab = 'log'; if (location.hash === '#/activity') viewActivity($('#view')); else location.hash = '#/activity'; },
   'open-logs': async () => { try { await api('POST', '/logs/open'); } catch (e) { fail(e); } },
   unblock: async (el) => { try { await api('DELETE', '/blocklist/' + el.dataset.i); drawActivity(); } catch (e) { fail(e); } },
   'set-tab': (el) => {
@@ -2210,6 +2297,7 @@ const actions = {
     settingsTab = el.dataset.tab;
     $$('.tabs .tab').forEach((b) => { const on = b === el; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
     history.replaceState(null, '', '#/settings/' + settingsTab);
+    routeHash = location.hash;
     drawSettingsTab();
   },
   preset: (el) => {
@@ -2220,7 +2308,7 @@ const actions = {
   },
   'save-settings': async (el) => {
     el.disabled = true;
-    try { await saveSettings(false); toast(t('Settings saved'), 'ok'); } catch (e) { fail(e); }
+    try { await saveSettings(false); hideUnsaved(); toast(t('Settings saved'), 'ok'); } catch (e) { fail(e); }
     el.disabled = false;
   },
   'test-client': async () => {

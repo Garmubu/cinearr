@@ -101,7 +101,7 @@ When the wizard ends, the films and series folders are read and their videos are
 - On the film page: **Automatic search** downloads the best release; **Manual search** lists every release of the film with its quality, size, seeds, indexer and, for refused ones, the reasons. *Download* sends one, *Download anyway* sends a refused one. Results of other films (some sites answer unknown titles with unrelated releases) are left out.
 - Your sites are searched by IMDb id **and** by the local, English and original titles, so that a French film is also found under its English title.
 - **Manual search** shows a *Bonus* column: the points of your preferences (preferred languages, preferred terms such as MULTi, freeleech), hover it for the detail. Quality, seeds and size are compared apart. A release without any language tag is taken to be in the original language of the film, and a MULTi release (`MULTi`, `[MULTi]`, `MULTi-GROUP`…) to contain the languages chosen in the profile.
-- Once downloaded: **Play**, **Search subtitles**, **Open the folder**, or **Search a better release** (upgrades follow your quality profile). When the film has subtitle files, a list next to **Play** chooses the one active at the launch, or none; it starts on your preferred language. The choice applies to VLC, mpv and MPC-HC (with MPC-HC, *No subtitles* passes no file but the player may still load one of the same name by itself).
+- Once downloaded: **Play**, **Search subtitles**, **Open the folder**, or **Search a better release** (upgrades follow your quality profile). When the film has subtitle files, a list next to **Play** chooses the one active at the launch, or none; it starts on your preferred language. The other subtitles (files and those inside the video) stay available in the player's menu during playback. The choice applies to VLC, mpv and MPC-HC (with MPC-HC, *No subtitles* passes no file but the player may still show one of the same name by itself). The player opens in front of the other windows.
 - The film page shows the cast and the crew with their photos.
 
 
@@ -148,7 +148,9 @@ When the wizard ends, the films and series folders are read and their videos are
 
 ## Configuration reference
 
-Settings are grouped in tabs: *General*, *Torrent client*, *Library*, *Quality*, *Subtitles*, *Player*, *Data and diagnostics*.
+Settings are grouped in tabs: *General*, *Torrent client*, *Library*, *Quality*, *Subtitles*, *Player*, *Data and diagnostics*. Changes are kept from one tab to another until you click **Save**. Leaving the settings with changes not saved is refused: a red box at the bottom right offers **Save** or **Discard the changes**, and shakes at each new attempt.
+
+Posters are those of the original version of each film or series (an American film keeps its American poster, a Japanese one its Japanese poster), or a poster without text when TMDB has none; titles, summaries and genres stay in the language of the pages.
 
 ### Torrent client
 

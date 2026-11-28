@@ -124,6 +124,30 @@ with sync_playwright() as p:
     pg.click('[data-act=set-tab][data-tab=library]')
     pg.click('[data-act=set-tab][data-tab=general]')
     assert pg.input_value('#f-tmdbKey') == 'changed-key'
+    # leaving with changes not saved: the page stays, the box shakes at each try
+    pg.click('#nav a[href="#/discover"]'); pg.wait_for_selector('#unsaved')
+    assert pg.evaluate('location.hash').startswith('#/settings'), pg.evaluate('location.hash')
+    pg.screenshot(path=shots + '16b-settings-unsaved.png')
+    pg.click('#nav a[href="#/library"]'); time.sleep(.1)
+    assert 'shake' in pg.get_attribute('#unsaved', 'class')
+    pg.click('#unsaved [data-unsaved=discard]')
+    pg.wait_for_selector('#lib')  # it goes where the user wanted to go
+    assert not pg.query_selector('#unsaved')
+    pg.goto(BASE + '#/settings/general'); pg.wait_for_selector('#f-tmdbKey')
+    assert pg.input_value('#f-tmdbKey') != 'changed-key'
+    # "Save" in the box saves, then leaves
+    pg.fill('#f-tmdbKey', 'demo-key')
+    pg.click('#nav a[href="#/discover"]'); pg.wait_for_selector('#unsaved')
+    pg.click('#unsaved [data-unsaved=save]')
+    pg.wait_for_selector('#disc')
+    assert pg.evaluate("fetch('/api/settings').then(r => r.json()).then(s => s.tmdbKey)") == 'demo-key'
+    # without changes, every tab visited, leaving is free
+    pg.goto(BASE + '#/settings/general'); pg.wait_for_selector('#f-tmdbKey')
+    for tab in ['client', 'library', 'quality', 'subtitles', 'player', 'data', 'general']:
+        pg.click(f'[data-act=set-tab][data-tab={tab}]'); time.sleep(.3)
+    pg.click('#nav a[href="#/discover"]'); pg.wait_for_selector('#disc')
+    assert not pg.query_selector('#unsaved'), 'settings seen as changed without any change'
+    pg.goto(BASE + '#/settings/general'); pg.wait_for_selector('#f-tmdbKey')
     pg.fill('#f-tmdbKey', 'demo-key')
     # change the interface language from the settings
     pg.select_option('#f-uiLanguage', 'de')
@@ -226,7 +250,8 @@ with sync_playwright() as p:
     assert pg.input_value('#ep-sub-2-1') == '0', pg.input_value('#ep-sub-2-1')  # French first (preferred)
     pg.click('.ep-detail [data-act=ep-play]'); time.sleep(1)
     played = open(log).read()
-    assert '--no-sub-autodetect-file' in played and '.fr.srt' in played, played
+    # the chosen file is shown first, VLC keeps the others of the folder
+    assert '.fr.srt' in played and '--sub-file=' in played and '--no-sub-autodetect-file' not in played, played
     pg.select_option('#ep-sub-2-1', 'none')
     time.sleep(3.5)  # a periodic redraw keeps the choice
     assert pg.input_value('#ep-sub-2-1') == 'none', 'choice lost on redraw'

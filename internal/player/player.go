@@ -289,14 +289,9 @@ func Args(exe, file string, o Options) []string {
 	var args []string
 	switch Family(exe) {
 	case MPV:
-		args = append(args, "--force-window=immediate", "--hwdec=auto-safe", "--keep-open=no")
-		if o.ChooseSubtitle {
-			args = append(args, "--sub-auto=no", "--title="+o.Title)
-		} else {
-			args = append(args, "--sub-auto=fuzzy", "--title="+o.Title)
-			if o.SubLang != "" {
-				args = append(args, "--slang="+o.SubLang)
-			}
+		args = append(args, "--force-window=immediate", "--hwdec=auto-safe", "--keep-open=no", "--sub-auto=fuzzy", "--title="+o.Title)
+		if o.SubLang != "" && !o.ChooseSubtitle {
+			args = append(args, "--slang="+o.SubLang)
 		}
 		if o.AudioLang != "" {
 			args = append(args, "--alang="+o.AudioLang)
@@ -309,15 +304,24 @@ func Args(exe, file string, o Options) []string {
 			_ = os.MkdirAll(wl, 0o755)
 			args = append(args, "--save-position-on-quit", "--watch-later-dir="+wl)
 		}
-		switch {
-		case o.ChooseSubtitle && o.Subtitle != "":
-			// a single --sub-file is shown by default
-			args = append(args, "--sub-file="+o.Subtitle)
-		case o.ChooseSubtitle:
-			args = append(args, "--sid=no")
-		default:
-			for _, s := range o.Subtitles {
-				args = append(args, "--sub-file="+s)
+		// every subtitle stays available in the player; the one chosen in
+		// Cinearr (or none) is selected at the start by a small script, by
+		// its file name: its track number depends on the subtitles inside
+		// the video, which Cinearr does not know
+		for _, s := range o.Subtitles {
+			args = append(args, "--sub-file="+s)
+		}
+		if o.ChooseSubtitle {
+			if o.Subtitle == "" {
+				args = append(args, "--sid=no")
+			}
+			if script := mpvScript(o.DataDir); script != "" {
+				args = append(args, "--script="+script)
+				if o.Subtitle == "" {
+					args = append(args, "--script-opts-append=cinearr-nosub=yes")
+				} else {
+					args = append(args, "--script-opts-append=cinearr-sub="+o.Subtitle)
+				}
 			}
 		}
 		args = append(args, strings.Fields(o.ExtraArgs)...)
@@ -338,14 +342,15 @@ func Args(exe, file string, o Options) []string {
 		} else {
 			args = append(args, "--qt-continue=0")
 		}
+		// VLC loads the other subtitles of the folder by itself: they stay
+		// in its Subtitle menu; --sub-file is the one shown at the start
 		switch {
 		case o.ChooseSubtitle && o.Subtitle != "":
-			args = append(args, "--no-sub-autodetect-file", "--sub-file="+o.Subtitle)
+			args = append(args, "--sub-file="+o.Subtitle)
 		case o.ChooseSubtitle:
-			// "none" selects no subtitle track; the menu can still show one
-			args = append(args, "--no-sub-autodetect-file", "--sub-language=none")
+			// "none" selects no subtitle track; the menu still lists them
+			args = append(args, "--sub-language=none")
 		case len(o.Subtitles) > 0:
-			// VLC loads the other subtitles of the folder by itself
 			args = append(args, "--sub-file="+o.Subtitles[0])
 		}
 		args = append(args, strings.Fields(o.ExtraArgs)...)
@@ -357,7 +362,9 @@ func Args(exe, file string, o Options) []string {
 		}
 		subs := o.Subtitles
 		if o.ChooseSubtitle {
-			// MPC-HC has no switch to disable subtitles: "none" passes none
+			// MPC-HC loads the subtitles named after the video by itself:
+			// they stay in its menu. It has no switch to disable subtitles:
+			// "none" passes none
 			subs = nil
 			if o.Subtitle != "" {
 				subs = []string{o.Subtitle}
@@ -371,9 +378,73 @@ func Args(exe, file string, o Options) []string {
 	return append(strings.Fields(o.ExtraArgs), file)
 }
 
+// mpvSelect is the mpv script that selects, when the file is loaded, the
+// subtitle chosen in Cinearr (script option cinearr-sub, matched by path,
+// then by file name) or none (cinearr-nosub=yes). It runs after mpv has
+// restored a resumed position, whose saved track it overrides.
+const mpvSelect = `-- Cinearr: selects at the start the subtitle chosen in Cinearr; every
+-- other subtitle stays available in mpv.
+local opts = { sub = "", nosub = "no" }
+require("mp.options").read_options(opts, "cinearr")
+local function base(p) return ((p or ""):match("([^/\\]+)$") or ""):lower() end
+mp.register_event("file-loaded", function()
+  if opts.nosub == "yes" then mp.set_property("sid", "no") return end
+  if opts.sub == "" then return end
+  local byname
+  for _, t in ipairs(mp.get_property_native("track-list") or {}) do
+    if t.type == "sub" and t.external then
+      local f = t["external-filename"] or ""
+      if f == opts.sub then mp.set_property_number("sid", t.id) return end
+      if not byname and base(f) == base(opts.sub) then byname = t.id end
+    end
+  end
+  if byname then mp.set_property_number("sid", byname) end
+end)
+`
+
+// mpvScript writes the selection script into the data folder (or the
+// temporary folder) and returns its path, or "" if it cannot be written.
+func mpvScript(dataDir string) string {
+	dir := dataDir
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	p := filepath.Join(dir, "mpv", "cinearr-subtitle.lua")
+	if b, err := os.ReadFile(p); err == nil && string(b) == mpvSelect {
+		return p
+	}
+	if os.MkdirAll(filepath.Dir(p), 0o755) != nil || os.WriteFile(p, []byte(mpvSelect), 0o644) != nil {
+		return ""
+	}
+	return p
+}
+
+// macBundle returns the application bundle of an executable inside one
+// ("/Applications/VLC.app" for ".../VLC.app/Contents/MacOS/VLC"), or "".
+func macBundle(exe string) string {
+	if i := strings.Index(exe, ".app/Contents/MacOS/"); i > 0 {
+		return exe[:i+len(".app")]
+	}
+	return ""
+}
+
+// command builds the launch of the player. On macOS an application is
+// opened with "open", which brings it to the front (a program started by
+// Cinearr in the background would open behind its window); -n starts a new
+// instance, -W waits for it to close.
+func command(exe, file string, o Options) *exec.Cmd {
+	args := Args(exe, file, o)
+	if runtime.GOOS == "darwin" {
+		if b := macBundle(exe); b != "" {
+			return exec.Command("open", append([]string{"-W", "-n", "-a", b, "--args"}, args...)...)
+		}
+	}
+	return exec.Command(exe, args...)
+}
+
 // Play starts the player on file and returns immediately.
 func Play(exe, file string, o Options) (*exec.Cmd, error) {
-	cmd := exec.Command(exe, Args(exe, file, o)...)
+	cmd := command(exe, file, o)
 	cmd.Dir = filepath.Dir(file)
 	hideConsole(cmd)
 	if err := cmd.Start(); err != nil {

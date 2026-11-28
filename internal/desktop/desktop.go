@@ -106,5 +106,10 @@ func OpenPath(p string) error {
 	default:
 		cmd = exec.Command("xdg-open", p)
 	}
-	return cmd.Start()
+	front := openInFront(p)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	front()
+	return nil
 }

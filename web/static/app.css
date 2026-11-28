@@ -329,3 +329,10 @@ table.eps tr.ep-panel > td { padding: 4px 16px 22px 52px; background: rgba(255, 
 .tag.warn { background: rgba(245, 192, 74, .14); color: #f1c96a; }
 /* subtitle chosen before the launch, next to the Play button */
 select.sub-pick, .row > select.sub-pick { width: auto; flex: 0 1 auto; max-width: 280px; padding: 9px 11px; }
+/* settings left with changes not saved */
+.unsaved { background: #1d2230; border: 2px solid var(--bad); border-radius: 10px; padding: 12px 16px; box-shadow: var(--shadow); max-width: 440px; animation: pop .2s ease; }
+.unsaved-text { font-weight: 600; margin-bottom: 10px; }
+.unsaved .row { justify-content: flex-end; gap: 8px; }
+.unsaved.shake { animation: shake .45s ease; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) { .unsaved, .unsaved.shake { animation: none; } }

@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"time"
 
 	"cinearr/internal/diag"
@@ -81,5 +83,54 @@ func (a *App) refreshMetadata() {
 	}
 	if total := len(movies) + len(series); total > 0 {
 		a.record(model.HistoryEvent{Kind: "refresh"}, "Film and series pages reloaded in %s: %d of %d", a.MetadataStatus().Language, ok, total)
+	}
+}
+
+// postersMarker records that the posters of the library are in the original
+// language of each title (localised posters were kept before 0.4.2).
+const postersMarker = "posters-original"
+
+// originalPosters gives the films and series of the library the poster of
+// their original language, once; a title TMDB could not answer for keeps
+// its poster until the next refresh, and the pass is tried again at the
+// next launch.
+func (a *App) originalPosters() {
+	marker := filepath.Join(a.Store.Dir(), postersMarker)
+	if _, err := os.Stat(marker); err == nil {
+		return
+	}
+	c := a.TMDB()
+	if !c.Configured() {
+		return
+	}
+	failed := 0
+	poster := func(tv bool, id int, original, current string) string {
+		if original == "" {
+			return current
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		p, err := c.LookupOriginalPoster(ctx, tv, id, original)
+		if err != nil {
+			failed++
+			return current
+		}
+		if p == "" {
+			return current
+		}
+		return p
+	}
+	for _, m := range a.Store.Movies() {
+		if p := poster(false, m.TmdbID, m.OriginalLanguage, m.PosterPath); p != m.PosterPath {
+			a.Store.UpdateMovie(m.TmdbID, func(x *model.Movie) { x.PosterPath = p })
+		}
+	}
+	for _, s := range a.Store.AllSeries() {
+		if p := poster(true, s.TmdbID, s.OriginalLanguage, s.PosterPath); p != s.PosterPath {
+			a.Store.UpdateSeries(s.TmdbID, func(x *model.Series) { x.PosterPath = p })
+		}
+	}
+	if failed == 0 {
+		_ = os.WriteFile(marker, []byte("1\n"), 0o644)
 	}
 }
