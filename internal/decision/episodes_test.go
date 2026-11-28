@@ -69,3 +69,21 @@ func TestEvaluateEpisodes(t *testing.T) {
 		t.Fatalf("season pack not first: %+v", ds[0])
 	}
 }
+
+// An untagged series release is in the original language of the series;
+// a MULTi one counts as French and original (French profile).
+func TestEpisodeLanguages(t *testing.T) {
+	s := twinPeaks()
+	s.OriginalLanguage = "en"
+	ctx := EpisodeContext{Series: s, Wanted: []model.EpisodeKey{{Season: 2, Episode: 1}}}
+	for title, want := range map[string]string{
+		"Twin.Peaks.S02E01.1080p.BluRay.x264-GRP":       "English, Original",
+		"Twin Peaks S02E01 [MULTi] 1080p BluRay x264":   "French, Original",
+		"Twin.Peaks.S02E01.FRENCH.1080p.BluRay.x264-GR": "French",
+	} {
+		d := EvaluateEpisodes([]model.Release{rel(title, 2)}, DefaultProfile(), ctx)[0]
+		if got := joinLangs(d.Languages); got != want {
+			t.Errorf("%s: %q, want %q", title, got, want)
+		}
+	}
+}

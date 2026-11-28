@@ -2,6 +2,16 @@
 
 All notable changes for users are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0]
+
+- Choose the subtitle (or none) active at the launch, next to the **Play** button of a film and in the details of an episode (VLC, mpv and MPC-HC).
+- After adding a film or a series, you stay where you were to add other titles; the poster shows that it is in the library.
+- The pages of films and series no longer jump back to the top every few seconds, and an opened subtitle list keeps its choice.
+- Release languages: MULTi is found whatever surrounds it (`[MULTi]`, `MULTi-GROUP`, `(MULTI)`…), so such releases get their languages and their points; a release without any language tag is taken to be in the original language of the film or series instead of “Unknown”.
+- The *Score* column of the manual search is now *Bonus*, with the detail of its points.
+- The poster of a series with nothing downloaded no longer shows a badge.
+- Uninstall: one window with **Uninstall** and **Cancel** and a box to delete the data too; from *Settings › Apps*, the buttons say **Keep the data** and **Delete the data**.
+
 ## [0.3.2]
 
 - The setup wizard no longer asks for a TMDB key: the one provided with Cinearr is used. A key of your own can still be entered in *Settings › General*.

@@ -1,8 +1,9 @@
 //go:build windows
 
 // Command cinearr-uninstall is uninstall.exe, installed next to cinearr.exe
-// by the Windows installer: it asks whether the data of Cinearr must be
-// deleted too, then runs the uninstaller of the installation.
+// by the Windows installer: one window with Uninstall and Cancel and a box
+// to delete the data of Cinearr too, then the uninstaller of the
+// installation runs.
 package main
 
 import (
@@ -32,15 +33,28 @@ func main() {
 		desktop.Info(title, i18n.Tf("This copy of Cinearr was not installed with the installer: to remove it, delete the folder %s. Its data is in %s.", dir, data))
 		return
 	}
-	q := i18n.Tf("Uninstall Cinearr from %s?\n\nDo you also want to delete all its data: settings, list of films and series, history, logs and the players it installed (%s)?\n\nYes: uninstall and delete the data\nNo: uninstall and keep the data, for a later reinstallation\nCancel: do nothing\n\nYour films, series and downloads are never deleted.", dir, data)
-	var del string
-	switch desktop.Ask(title, q, true) {
-	case desktop.Yes:
-		del = "yes"
-	case desktop.No:
-		del = "no"
-	default:
+	// one question: Uninstall or Cancel, and a box to delete the data too
+	ok, deleteData, err := desktop.Confirm{
+		Title:       title,
+		Instruction: i18n.T("Uninstall Cinearr?"),
+		Content:     i18n.Tf("Cinearr will be removed from %s.\n\nYour films, series and downloads are never deleted.", dir),
+		Action:      i18n.T("Uninstall"),
+		CheckBox:    i18n.Tf("Also delete the data of Cinearr (settings, list of films and series, history, logs and installed players, in %s)", data),
+	}.Show()
+	if err != nil {
+		// without the task dialog: two plain questions
+		if desktop.Ask(title, i18n.Tf("Uninstall Cinearr from %s?\n\nYour films, series and downloads are never deleted.", dir), false) != desktop.Yes {
+			return
+		}
+		ok = true
+		deleteData = desktop.Ask(title, i18n.Tf("Also delete the data of Cinearr (settings, list of films and series, history, logs and installed players, in %s)?", data), false) == desktop.Yes
+	}
+	if !ok {
 		return
+	}
+	del := "no"
+	if deleteData {
+		del = "yes"
 	}
 	update.QuitRunning(data)
 	if err := exec.Command(uninstallers[0], "/SILENT", "/DELETEDATA="+del).Start(); err != nil {

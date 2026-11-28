@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"cinearr/internal/backoff"
@@ -360,8 +361,32 @@ func (a *App) AutoEpisodeSubtitles(ctx context.Context, id, season, number int) 
 // ---------------------------------------------------------------------------
 // Playback
 
+// SubtitleChoice is the subtitle chosen before the launch: Set is false to
+// keep the default (every subtitle file, the player picks by language);
+// otherwise Index is a subtitle of the film or episode, or -1 for none.
+type SubtitleChoice struct {
+	Set   bool
+	Index int
+}
+
+// ParseSubtitleChoice reads the "sub" parameter: empty for the default,
+// "none", or the index of a subtitle.
+func ParseSubtitleChoice(v string) (SubtitleChoice, error) {
+	switch v {
+	case "":
+		return SubtitleChoice{}, nil
+	case "none":
+		return SubtitleChoice{Set: true, Index: -1}, nil
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil || i < 0 {
+		return SubtitleChoice{}, i18n.New("subtitle not found")
+	}
+	return SubtitleChoice{Set: true, Index: i}, nil
+}
+
 // Play opens the film (or the file being downloaded) in the chosen player.
-func (a *App) Play(id int, whileDownloading bool) error {
+func (a *App) Play(id int, whileDownloading bool, choice SubtitleChoice) error {
 	m, ok := a.Store.Movie(id)
 	if !ok {
 		return i18n.New("film not found")
@@ -377,7 +402,7 @@ func (a *App) Play(id int, whileDownloading bool) error {
 		}
 		file = largestVideo(content)
 	}
-	if err := a.launch(file, subs, fmt.Sprintf("%s (%d)", m.Title, m.Year)); err != nil {
+	if err := a.launch(file, subs, fmt.Sprintf("%s (%d)", m.Title, m.Year), choice); err != nil {
 		return err
 	}
 	a.history(id, "played", "Playing %s", m.Title)
@@ -386,7 +411,7 @@ func (a *App) Play(id int, whileDownloading bool) error {
 
 // PlayEpisode opens an episode (or the file being downloaded) in the
 // player.
-func (a *App) PlayEpisode(id, season, number int, whileDownloading bool) error {
+func (a *App) PlayEpisode(id, season, number int, whileDownloading bool, choice SubtitleChoice) error {
 	s, e, err := a.episode(id, season, number)
 	if err != nil {
 		return err
@@ -407,7 +432,7 @@ func (a *App) PlayEpisode(id, season, number int, whileDownloading bool) error {
 	if e.Title != "" {
 		title += " - " + e.Title
 	}
-	if err := a.launch(file, subs, title); err != nil {
+	if err := a.launch(file, subs, title, choice); err != nil {
 		return err
 	}
 	a.seriesHistory(id, "played", "Playing %s", s.Title+" "+label)
@@ -433,8 +458,10 @@ func (a *App) liveContent(hash string) (string, error) {
 }
 
 // launch starts the player with the settings (audio and subtitle
-// languages, full screen, resume).
-func (a *App) launch(file string, subs []string, title string) error {
+// languages, full screen, resume) and the subtitle chosen by the user, if
+// any (it only applies to the subtitles of the library: not while
+// downloading).
+func (a *App) launch(file string, subs []string, title string, choice SubtitleChoice) error {
 	if file == "" {
 		return i18n.New("no file to play")
 	}
@@ -446,10 +473,20 @@ func (a *App) launch(file string, subs []string, title string) error {
 	if err != nil {
 		return err
 	}
-	_, err = player.Play(exe, file, player.Options{
+	o := player.Options{
 		Title: title, Subtitles: subs, Fullscreen: st.Player.Fullscreen, AudioLang: st.Player.AudioLang,
 		SubLang: strings.Join(st.Subtitles.Languages, ","), Resume: st.Player.Resume, DataDir: a.Store.Dir(), ExtraArgs: st.Player.ExtraArgs,
-	})
+	}
+	if choice.Set {
+		if choice.Index >= len(subs) {
+			return i18n.New("subtitle not found")
+		}
+		o.ChooseSubtitle = true
+		if choice.Index >= 0 {
+			o.Subtitle = subs[choice.Index]
+		}
+	}
+	_, err = player.Play(exe, file, o)
 	return err
 }
 

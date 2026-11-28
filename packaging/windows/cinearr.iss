@@ -10,8 +10,9 @@
 ;   shortcut;
 ; - refuses to run over an existing installation and offers update.exe or
 ;   uninstall.exe instead; update.exe runs it with /UPDATE to update;
-; - uninstalling asks whether the data of Cinearr is deleted too
-;   (uninstall.exe asks first and passes /DELETEDATA=yes|no).
+; - uninstalling asks whether the data of Cinearr is deleted too, with the
+;   buttons "Delete the data" and "Keep the data" (uninstall.exe asks first,
+;   with a check box, and passes /DELETEDATA=yes|no).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -89,11 +90,26 @@ es.BtnUninstall=Desinstalar Cinearr
 it.BtnUninstall=Disinstalla Cinearr
 de.BtnUninstall=Cinearr deinstallieren
 
-en.AskDeleteData=Also delete the data of Cinearr: settings, list of films and series, history, logs and installed players?%n%nYes: delete everything.%nNo: keep the data for a later reinstallation.%n%nYour films, series and downloads are never deleted.
-fr.AskDeleteData=Supprimer aussi les données de Cinearr : réglages, liste des films et des séries, historique, journaux et lecteurs installés ?%n%nOui : tout supprimer.%nNon : garder les données pour une prochaine installation.%n%nVos films, séries et téléchargements ne sont jamais supprimés.
-es.AskDeleteData=¿Borrar también los datos de Cinearr: ajustes, lista de películas y series, historial, registros y reproductores instalados?%n%nSí: borrar todo.%nNo: conservar los datos para una reinstalación.%n%nTus películas, series y descargas nunca se borran.
-it.AskDeleteData=Eliminare anche i dati di Cinearr: impostazioni, elenco di film e serie, cronologia, registri e lettori installati?%n%nSì: eliminare tutto.%nNo: conservare i dati per una reinstallazione.%n%nI tuoi film, le serie e i download non vengono mai eliminati.
-de.AskDeleteData=Auch die Daten von Cinearr löschen: Einstellungen, Film- und Serienliste, Verlauf, Protokolle und installierte Player?%n%nJa: alles löschen.%nNein: Daten für eine spätere Neuinstallation behalten.%n%nIhre Filme, Serien und Downloads werden nie gelöscht.
+en.AskDeleteDataTitle=Also delete the data of Cinearr?
+en.AskDeleteData=Settings, list of films and series, history, logs and installed players.%n%nKeep them to find everything again after a reinstallation. Your films, series and downloads are never deleted.
+en.BtnKeepData=Keep the data
+en.BtnDeleteData=Delete the data
+fr.AskDeleteDataTitle=Supprimer aussi les données de Cinearr ?
+fr.AskDeleteData=Réglages, liste des films et des séries, historique, journaux et lecteurs installés.%n%nGardez-les pour tout retrouver après une réinstallation. Vos films, séries et téléchargements ne sont jamais supprimés.
+fr.BtnKeepData=Garder les données
+fr.BtnDeleteData=Supprimer les données
+es.AskDeleteDataTitle=¿Borrar también los datos de Cinearr?
+es.AskDeleteData=Ajustes, lista de películas y series, historial, registros y reproductores instalados.%n%nConsérvelos para recuperarlo todo tras una reinstalación. Sus películas, series y descargas nunca se borran.
+es.BtnKeepData=Conservar los datos
+es.BtnDeleteData=Borrar los datos
+it.AskDeleteDataTitle=Eliminare anche i dati di Cinearr?
+it.AskDeleteData=Impostazioni, elenco di film e serie, cronologia, registri e lettori installati.%n%nConservali per ritrovare tutto dopo una reinstallazione. I tuoi film, le serie e i download non vengono mai eliminati.
+it.BtnKeepData=Conserva i dati
+it.BtnDeleteData=Elimina i dati
+de.AskDeleteDataTitle=Auch die Daten von Cinearr löschen?
+de.AskDeleteData=Einstellungen, Film- und Serienliste, Verlauf, Protokolle und installierte Player.%n%nBehalten Sie sie, um nach einer Neuinstallation alles wiederzufinden. Ihre Filme, Serien und Downloads werden nie gelöscht.
+de.BtnKeepData=Daten behalten
+de.BtnDeleteData=Daten löschen
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -214,7 +230,10 @@ begin
   begin
     if DeleteData = 0 then
     begin
-      if MsgBox(CustomMessage('AskDeleteData'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      { two explicit buttons, keeping the data by default: only the Delete
+        button (IDYES) deletes, closing the dialog keeps everything }
+      if TaskDialogMsgBox(CustomMessage('AskDeleteDataTitle'), CustomMessage('AskDeleteData'), mbConfirmation,
+        MB_YESNO or MB_DEFBUTTON2, [CustomMessage('BtnDeleteData'), CustomMessage('BtnKeepData')], 0) = IDYES then
         DeleteData := 1
       else
         DeleteData := 2;

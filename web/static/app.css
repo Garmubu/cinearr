@@ -327,3 +327,5 @@ table.eps tr.ep-panel > td { padding: 4px 16px 22px 52px; background: rgba(255, 
 #scan-report summary { cursor: pointer; }
 .scan-list { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); max-height: 220px; overflow: auto; }
 .tag.warn { background: rgba(245, 192, 74, .14); color: #f1c96a; }
+/* subtitle chosen before the launch, next to the Play button */
+select.sub-pick, .row > select.sub-pick { width: auto; flex: 0 1 auto; max-width: 280px; padding: 9px 11px; }

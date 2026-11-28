@@ -83,6 +83,11 @@ with sync_playwright() as p:
     assert abs(box['height'] / box['width'] - 1.5) < 0.05, box
     pg.screenshot(path=shots + '10-preview.png')
     pg.click('[data-addnow]')
+    # the user stays on Discover to add other titles; the poster says it is added
+    pg.wait_for_selector('#disc .poster[data-id="27205"] .badge.lib')
+    assert pg.evaluate('location.hash') == '#/discover', pg.evaluate('location.hash')
+    assert not pg.query_selector('.modal'), 'preview still open'
+    pg.click('#disc .poster[data-id="27205"]')
     pg.wait_for_selector('.hero h1')
     time.sleep(1)
     # adding does not download anything by itself
@@ -169,6 +174,9 @@ with sync_playwright() as p:
     time.sleep(.3)
     pg.screenshot(path=shots + '21-preview-series.png')
     pg.click('[data-addnow]')
+    pg.wait_for_selector('#disc .poster[data-id="1920"] .badge.lib')
+    assert pg.evaluate('location.hash').startswith('#/discover'), pg.evaluate('location.hash')
+    pg.click('#disc .poster[data-id="1920"]')
     pg.wait_for_selector('table.eps')
     time.sleep(.6)
     pg.screenshot(path=shots + '22-series-page.png')
@@ -212,6 +220,26 @@ with sync_playwright() as p:
     pg.click('.modal [data-yes]')
     wait_text(pg, '.ep-detail', 'ajouté depuis un fichier', 15)
     pg.screenshot(path=shots + '26c-subtitle-imported.png')
+    # subtitle chosen before the launch: the French file, then none
+    log = os.environ.get('CINEARR_PLAYER_LOG', '/tmp/cinearr-player-args.txt')
+    pg.wait_for_selector('#ep-sub-2-1')
+    assert pg.input_value('#ep-sub-2-1') == '0', pg.input_value('#ep-sub-2-1')  # French first (preferred)
+    pg.click('.ep-detail [data-act=ep-play]'); time.sleep(1)
+    played = open(log).read()
+    assert '--no-sub-autodetect-file' in played and '.fr.srt' in played, played
+    pg.select_option('#ep-sub-2-1', 'none')
+    time.sleep(3.5)  # a periodic redraw keeps the choice
+    assert pg.input_value('#ep-sub-2-1') == 'none', 'choice lost on redraw'
+    pg.click('.ep-detail [data-act=ep-play]'); time.sleep(1)
+    played = open(log).read()
+    assert '--sub-language=none' in played and '--sub-file=' not in played, played
+    pg.screenshot(path=shots + '26d-subtitle-choice.png')
+    # the page does not jump back up while the user reads the episodes
+    pg.evaluate("document.getElementById('view').scrollTop = document.getElementById('view').scrollHeight")
+    bottom = pg.evaluate("document.getElementById('view').scrollTop")
+    assert bottom > 100, bottom
+    time.sleep(4)
+    assert pg.evaluate("document.getElementById('view').scrollTop") == bottom, 'scroll moved by a redraw'
     pg.goto(BASE + '#/library/series'); pg.wait_for_selector('#lib .poster'); time.sleep(.3)
     pg.screenshot(path=shots + '27-library-series.png')
     pg.click('[data-act=lib-kind][data-k=films]'); pg.wait_for_selector('#lib .poster')

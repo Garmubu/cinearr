@@ -192,7 +192,7 @@ func (a *App) importDownload(ctx context.Context, id int, t dlclient.Torrent) {
 
 	langs, group := []string{}, ""
 	if parsed != nil {
-		langs = decision.EffectiveLanguages(m.Download.ReleaseTitle, parsed.Languages, s.Profile)
+		langs = decision.EffectiveLanguages(m.Download.ReleaseTitle, parsed.Languages, s.Profile, m.OriginalLanguage)
 		group = parsed.ReleaseGroup
 	}
 	a.Store.UpdateMovie(id, func(mv *model.Movie) {
@@ -412,7 +412,7 @@ func (a *App) importSeriesDownload(ctx context.Context, id int, hash string, t d
 	relQ := parser.ParseQuality(dl.ReleaseTitle).Quality
 	langs, group := []string{}, ""
 	if pe := parser.ParseEpisodeTitle(dl.ReleaseTitle); pe != nil {
-		langs = decision.EffectiveLanguages(dl.ReleaseTitle, pe.Languages, st.Profile)
+		langs = decision.EffectiveLanguages(dl.ReleaseTitle, pe.Languages, st.Profile, s.OriginalLanguage)
 		group = pe.ReleaseGroup
 	}
 	seriesDir := filepath.Join(st.SeriesPath, cleanFileName(fmt.Sprintf("%s (%d)", s.Title, s.Year)))

@@ -62,14 +62,20 @@ func Name(id string) string {
 
 // Options for one playback.
 type Options struct {
-	Title      string
-	Subtitles  []string
-	Fullscreen bool
-	AudioLang  string
-	SubLang    string
-	Resume     bool
-	DataDir    string
-	ExtraArgs  string
+	Title     string
+	Subtitles []string
+	// ChooseSubtitle is set when the user chose the subtitle before the
+	// launch: only Subtitle is given (none when it is empty) and the player
+	// does not pick another file of the folder by itself. It applies to VLC,
+	// mpv and MPC-HC; another player gets the film only.
+	ChooseSubtitle bool
+	Subtitle       string
+	Fullscreen     bool
+	AudioLang      string
+	SubLang        string
+	Resume         bool
+	DataDir        string
+	ExtraArgs      string
 }
 
 // InstallDir is where Cinearr installs players.
@@ -283,9 +289,14 @@ func Args(exe, file string, o Options) []string {
 	var args []string
 	switch Family(exe) {
 	case MPV:
-		args = append(args, "--force-window=immediate", "--hwdec=auto-safe", "--keep-open=no", "--sub-auto=fuzzy", "--title="+o.Title)
-		if o.SubLang != "" {
-			args = append(args, "--slang="+o.SubLang)
+		args = append(args, "--force-window=immediate", "--hwdec=auto-safe", "--keep-open=no")
+		if o.ChooseSubtitle {
+			args = append(args, "--sub-auto=no", "--title="+o.Title)
+		} else {
+			args = append(args, "--sub-auto=fuzzy", "--title="+o.Title)
+			if o.SubLang != "" {
+				args = append(args, "--slang="+o.SubLang)
+			}
 		}
 		if o.AudioLang != "" {
 			args = append(args, "--alang="+o.AudioLang)
@@ -298,14 +309,22 @@ func Args(exe, file string, o Options) []string {
 			_ = os.MkdirAll(wl, 0o755)
 			args = append(args, "--save-position-on-quit", "--watch-later-dir="+wl)
 		}
-		for _, s := range o.Subtitles {
-			args = append(args, "--sub-file="+s)
+		switch {
+		case o.ChooseSubtitle && o.Subtitle != "":
+			// a single --sub-file is shown by default
+			args = append(args, "--sub-file="+o.Subtitle)
+		case o.ChooseSubtitle:
+			args = append(args, "--sid=no")
+		default:
+			for _, s := range o.Subtitles {
+				args = append(args, "--sub-file="+s)
+			}
 		}
 		args = append(args, strings.Fields(o.ExtraArgs)...)
 		return append(args, "--", file)
 	case VLC:
 		args = append(args, "--no-one-instance", "--play-and-exit", "--meta-title="+o.Title)
-		if o.SubLang != "" {
+		if o.SubLang != "" && !o.ChooseSubtitle {
 			args = append(args, "--sub-language="+o.SubLang)
 		}
 		if o.AudioLang != "" {
@@ -319,8 +338,14 @@ func Args(exe, file string, o Options) []string {
 		} else {
 			args = append(args, "--qt-continue=0")
 		}
-		// VLC loads the other subtitles of the folder by itself
-		if len(o.Subtitles) > 0 {
+		switch {
+		case o.ChooseSubtitle && o.Subtitle != "":
+			args = append(args, "--no-sub-autodetect-file", "--sub-file="+o.Subtitle)
+		case o.ChooseSubtitle:
+			// "none" selects no subtitle track; the menu can still show one
+			args = append(args, "--no-sub-autodetect-file", "--sub-language=none")
+		case len(o.Subtitles) > 0:
+			// VLC loads the other subtitles of the folder by itself
 			args = append(args, "--sub-file="+o.Subtitles[0])
 		}
 		args = append(args, strings.Fields(o.ExtraArgs)...)
@@ -330,7 +355,15 @@ func Args(exe, file string, o Options) []string {
 		if o.Fullscreen {
 			args = append(args, "/fullscreen")
 		}
-		for _, s := range o.Subtitles {
+		subs := o.Subtitles
+		if o.ChooseSubtitle {
+			// MPC-HC has no switch to disable subtitles: "none" passes none
+			subs = nil
+			if o.Subtitle != "" {
+				subs = []string{o.Subtitle}
+			}
+		}
+		for _, s := range subs {
 			args = append(args, "/sub", s)
 		}
 		return append(args, strings.Fields(o.ExtraArgs)...)

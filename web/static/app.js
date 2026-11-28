@@ -9,6 +9,34 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const IMG = (p, size = 'w342') => (p ? `https://image.tmdb.org/t/p/${size}${p}` : '');
 
+// paint replaces the content of an element that is redrawn every few
+// seconds without moving the user: nothing is touched when the content is
+// the same; otherwise the scroll positions (the page and the inner .scroll
+// boxes), the choices of the lists and fields with an id, the opened
+// details and the content of the boxes filled afterwards (data-keep) are
+// carried over. route() clears the memory of the page when it changes.
+function paint(el, html) {
+  if (!el || el._html === html) return false;
+  const view = document.getElementById('view');
+  const top = view ? view.scrollTop : 0;
+  const inner = [...el.querySelectorAll('.scroll')].map((x) => [x.scrollTop, x.scrollLeft]);
+  const kept = {};
+  el.querySelectorAll('[data-keep]').forEach((x) => { kept[x.dataset.keep] = x.innerHTML; });
+  const values = {};
+  el.querySelectorAll('select[id], input[id]:not([type=checkbox]):not([type=file])').forEach((x) => { values[x.id] = x.value; });
+  const open = new Set([...el.querySelectorAll('details[data-k][open]')].map((x) => x.dataset.k));
+  el.innerHTML = html;
+  el._html = html;
+  el.querySelectorAll('[data-keep]').forEach((x) => { if (kept[x.dataset.keep] !== undefined) x.innerHTML = kept[x.dataset.keep]; });
+  el.querySelectorAll('select[id], input[id]:not([type=checkbox]):not([type=file])').forEach((x) => {
+    if (values[x.id] !== undefined && (x.tagName !== 'SELECT' || [...x.options].some((o) => o.value === values[x.id]))) x.value = values[x.id];
+  });
+  el.querySelectorAll('details[data-k]').forEach((x) => { if (open.has(x.dataset.k)) x.open = true; });
+  el.querySelectorAll('.scroll').forEach((x, i) => { if (inner[i]) [x.scrollTop, x.scrollLeft] = inner[i]; });
+  if (view) view.scrollTop = top;
+  return true;
+}
+
 /* ------------------------------------------------------------ translation */
 let LANG = 'en';
 let DICT = {};
@@ -274,6 +302,7 @@ function route() {
   renderNav();
   const v = $('#view');
   v.scrollTop = 0;
+  v._html = null;
   const views = { discover: viewDiscover, library: viewLibrary, movie: viewMovie, series: viewSeries, downloads: viewDownloads, indexers: viewIndexers, settings: viewSettings, activity: viewActivity, setup: viewSetup };
   (views[view] || viewDiscover)(v, arg);
 }
@@ -396,9 +425,18 @@ async function addMovie(id, el) {
   try {
     const m = await api('POST', '/movies', { tmdbId: +id, search: true });
     toast(state.settings?.searchOnAdd ? t('{title} added, looking for the best release…', { title: m.title }) : t('{title} added to the library', { title: m.title }), 'ok');
+    markAdded('movie', m.tmdbId);
     await refreshStatus();
-    location.hash = '#/movie/' + m.tmdbId;
   } catch (e) { fail(e); if (el) el.disabled = false; }
+}
+
+// markAdded shows on the spot that a film or a series is in the library:
+// the user stays on the page to add other titles (a click on the poster
+// then opens its page).
+function markAdded(kind, id) {
+  document.querySelectorAll(`.poster[data-kind="${kind}"][data-id="${id}"] .add`).forEach((b) => {
+    b.outerHTML = `<span class="badge lib">${esc(t('In library'))}</span>`;
+  });
 }
 
 async function previewMovie(id) {
@@ -481,9 +519,9 @@ function drawLibrary() {
   if (libFilter === 'failed') list = list.filter((m) => m.status === 'failed');
   if (libText) { const x = libText.toLowerCase(); list = list.filter((m) => (m.title + ' ' + (m.originalTitle || '')).toLowerCase().includes(x)); }
   $('#lib-count').textContent = plural(state.movies.length, '{n} film', '{n} films');
-  box.innerHTML = list.length ? `<div class="posters">${list.map(movieCard).join('')}</div>` :
+  paint(box, list.length ? `<div class="posters">${list.map(movieCard).join('')}</div>` :
     `<div class="empty">${ICON.library}<h2>${esc(state.movies.length ? t('No film in this filter') : t('Your library is empty'))}</h2>
-     <p>${state.movies.length ? '' : t('Search a film in <a href="#/discover">Discover</a> and add it, then start a search from its page.')}</p></div>`;
+     <p>${state.movies.length ? '' : t('Search a film in <a href="#/discover">Discover</a> and add it, then start a search from its page.')}</p></div>`);
 }
 
 function drawSeriesLibrary(box) {
@@ -493,9 +531,9 @@ function drawSeriesLibrary(box) {
   if (libFilter === 'complete') list = list.filter((s) => s.episodes && s.available >= s.episodes);
   if (libText) { const x = libText.toLowerCase(); list = list.filter((s) => (s.title + ' ' + (s.originalTitle || '')).toLowerCase().includes(x)); }
   $('#lib-count').textContent = plural(state.series.length, '{n} show', '{n} shows');
-  box.innerHTML = list.length ? `<div class="posters">${list.map(seriesCard).join('')}</div>` :
+  paint(box, list.length ? `<div class="posters">${list.map(seriesCard).join('')}</div>` :
     `<div class="empty">${ICON.tv}<h2>${esc(state.series.length ? t('No series in this filter') : t('No series yet'))}</h2>
-     <p>${state.series.length ? '' : t('Search a series in <a href="#/discover">Discover</a> and add it, then choose the seasons or episodes to download from its page.')}</p></div>`;
+     <p>${state.series.length ? '' : t('Search a series in <a href="#/discover">Discover</a> and add it, then choose the seasons or episodes to download from its page.')}</p></div>`);
 }
 
 
@@ -553,7 +591,7 @@ function viewMovie(v, id) {
   let extra = null;
   const draw = () => {
     const m = state.movies.find((x) => x.tmdbId === id);
-    if (!m) { v.innerHTML = `<div class="page"><div class="empty"><h2>${esc(t('Film not found'))}</h2><p><a href="#/library">${esc(t('Back to the library'))}</a></p></div></div>`; return; }
+    if (!m) { paint(v, `<div class="page"><div class="empty"><h2>${esc(t('Film not found'))}</h2><p><a href="#/library">${esc(t('Back to the library'))}</a></p></div></div>`); return; }
     const busy = state.status?.busy?.[id];
     const d = m.download;
     const p = d ? Math.floor((d.progress || 0) * 100) : 0;
@@ -581,7 +619,7 @@ function viewMovie(v, id) {
           ${s.hi ? `<span class="tag">${esc(t('HI'))}</span>` : ''}${s.forced ? `<span class="tag">${esc(t('forced'))}</span>` : ''}<span class="muted grow">${esc(s.provider)} · ${s.score} %</span></div>`).join('')}</div>` :
           `<p class="muted">${esc(t('No subtitles yet.'))}</p>`}
         <div style="margin-top:12px"><button data-act="subs">${ICON.sub}${esc(t('Search subtitles'))}</button></div></div>` : '';
-    v.innerHTML = `
+    paint(v, `
       <div class="hero"><div class="backdrop" style="background-image:url('${esc(IMG(m.backdropPath, 'w1280'))}')"></div>
         <div class="inner"><div class="pimg">${posterImg(m.posterPath, m.title, 'w500')}</div>
           <div style="flex:1;min-width:0">
@@ -593,7 +631,7 @@ function viewMovie(v, id) {
             <div class="overview">${esc(m.overview || '')}</div>
             ${m.statusMessage ? `<div class="callout warn" style="max-width:760px">${esc(m.statusMessage)}</div>` : ''}
             <div class="actions">
-              ${m.file ? `<button class="primary big" data-act="play">${ICON.play}${esc(t('Play'))}</button>` : ''}
+              ${m.file ? `<button class="primary big" data-act="play">${ICON.play}${esc(t('Play'))}</button>${subtitlePick('play-sub', m.subtitles)}` : ''}
               <button class="${m.file || d ? '' : 'primary'}" data-act="autosearch" ${busy ? 'disabled' : ''}>${busy ? `<span class="spinner"></span>${esc(t('Searching…'))}` : ICON.bolt + esc(m.file ? t('Search a better release') : t('Automatic search'))}</button>
               <button data-act="manual">${ICON.list}${esc(t('Manual search'))}</button>
               ${trailer ? `<a class="btn" href="https://www.youtube.com/watch?v=${esc(trailer.key)}" target="_blank" rel="noopener">${ICON.play}${esc(t('Trailer'))}</a>` : ''}
@@ -603,16 +641,43 @@ function viewMovie(v, id) {
       <div class="movie-body">
         <div>
           ${extra && (cast.length || director) ? `<div class="card credits"><h2>${esc(t('Cast and crew'))}</h2>${creditsHTML(extra.credits, 20)}</div>` : ''}
-          <div class="card"><h2>${esc(t('History'))}</h2><div id="movie-history" class="muted">${esc(t('Loading…'))}</div></div>
+          <div class="card"><h2>${esc(t('History'))}</h2><div id="movie-history" class="muted" data-keep="movie-history-${id}">${esc(t('Loading…'))}</div></div>
         </div>
         <div>${sideDownload}${sideFile}${!d && !m.file ? `<div class="card"><h2>${esc(t('Not downloaded yet'))}</h2><p class="muted">${te('Automatic search queries your indexers, discards suspicious releases and sends the best one to {client}. Manual search shows every result so you can choose.', { client: clientName() })}</p>
           <div class="row" style="flex-wrap:wrap"><button class="primary" data-act="autosearch" ${busy ? 'disabled' : ''}>${ICON.bolt}${esc(t('Automatic search'))}</button><button data-act="manual">${ICON.list}${esc(t('Manual search'))}</button></div></div>` : ''}</div>
-      </div>`;
+      </div>`);
     loadHistory('movie-history', (e) => e.tmdbId === id);
   };
   state.refresh = draw;
   draw();
   api('GET', '/tmdb/' + id).then((x) => { extra = x; if (state.view === 'movie') draw(); }).catch(() => {});
+}
+
+// subtitlePick is the list of the subtitles of a film or an episode, to
+// choose the one active at the launch (or none). It is only shown with the
+// players that honour the choice (VLC, mpv, MPC-HC) and when there is a
+// subtitle file; it starts on the first file in the preferred languages.
+const SUB_PLAYERS = ['vlc', 'mpv', 'mpc-hc'];
+function subtitlePick(id, subs) {
+  if (!(subs || []).length || !SUB_PLAYERS.includes(state.status?.playerFamily)) return '';
+  const prefs = (state.settings?.subtitles?.languages || []).map((l) => l.toLowerCase());
+  let def = 0;
+  for (const l of prefs) {
+    const i = subs.findIndex((x) => (x.language || '').toLowerCase() === l);
+    if (i >= 0) { def = i; break; }
+  }
+  const label = (x) => [String(x.language || '').toUpperCase(), x.hi ? t('HI') : '', x.forced ? t('forced') : '',
+    x.provider === 'manual' ? t('added from a file') : x.provider].filter(Boolean).join(' · ');
+  return `<select id="${esc(id)}" class="sub-pick" title="${esc(t('Subtitles at the launch'))}" aria-label="${esc(t('Subtitles at the launch'))}">
+    ${subs.map((x, i) => `<option value="${i}" ${i === def ? 'selected' : ''}>${esc(label(x))}</option>`).join('')}
+    <option value="none">${esc(t('No subtitles'))}</option></select>`;
+}
+
+// subQuery is the choice of a subtitle list for the play request
+// ("sub=…", or "" when the list is not shown).
+function subQuery(id) {
+  const el = document.getElementById(id);
+  return el ? 'sub=' + encodeURIComponent(el.value) : '';
 }
 
 // loadHistory shows the last events of a film or a series. The pages are
@@ -684,7 +749,7 @@ function viewDownloads(v) {
     items.sort((a, b) => String(b.added).localeCompare(String(a.added)));
     const st0 = state.status;
     $('#dl-sync').textContent = st0?.syncError || '';
-    box.innerHTML = items.length ? `<div class="list">${items.map((x) => {
+    paint(box, items.length ? `<div class="list">${items.map((x) => {
       const d = x.d;
       const p = Math.floor((d.progress || 0) * 100);
       const st = d.state && d.state !== 'downloading' ? DL_STATE()[d.state] : '';
@@ -696,7 +761,7 @@ function viewDownloads(v) {
           <div class="progress" style="margin:8px 0 6px"><i style="width:${p}%"></i></div>
           <div class="det rel-title">${esc(d.releaseTitle || '')}</div></div>
         <button class="ghost danger" ${x.cancel} title="${esc(t('Cancel'))}" aria-label="${esc(t('Cancel'))}">${ICON.x}</button></div>`;
-    }).join('')}</div>` : `<div class="empty">${ICON.downloads}<h2>${esc(t('No download in progress'))}</h2><p>${te('Films and episodes appear here while {client} downloads them.', { client: clientName() })}</p></div>`;
+    }).join('')}</div>` : `<div class="empty">${ICON.downloads}<h2>${esc(t('No download in progress'))}</h2><p>${te('Films and episodes appear here while {client} downloads them.', { client: clientName() })}</p></div>`);
   };
   state.refresh = draw;
   draw();
@@ -731,7 +796,7 @@ function seriesCard(s) {
   else if (s.episodes && s.available >= s.episodes) badge = `<span class="badge available">${esc(t('Complete'))}</span>`;
   else if (s.available) badge = `<span class="badge wanted">${esc(t('{n} / {total} episodes', { n: s.available, total: s.episodes }))}</span>`;
   else if (s.failed) badge = `<span class="badge failed">${esc(t('Failed'))}</span>`;
-  else badge = `<span class="badge lib">${esc(t('Nothing downloaded'))}</span>`;
+  else badge = ''; // nothing downloaded yet: the series page shows the episodes
   const p = dls.length ? Math.floor((dls.reduce((a, d) => a + (d.progress || 0), 0) / dls.length) * 100) : 0;
   return `<a class="poster" href="#/series/${s.tmdbId}" style="color:inherit;text-decoration:none">
     <div class="img">${posterImg(s.posterPath, s.title)}${badge}${dls.length ? `<div class="bar"><i style="width:${p}%"></i></div>` : ''}</div>
@@ -744,8 +809,8 @@ async function addSeries(id, el) {
   try {
     const s = await api('POST', '/series', { tmdbId: +id });
     toast(t('{title} added to the library', { title: s.title }), 'ok');
+    markAdded('tv', s.tmdbId);
     await refreshStatus();
-    location.hash = '#/series/' + s.tmdbId;
   } catch (e) { fail(e); if (el) el.disabled = false; }
 }
 
@@ -860,7 +925,7 @@ function viewSeries(v, id) {
         <button class="ghost danger" data-act="sdl-cancel" data-series="${id}" data-hash="${esc(d.hash)}" title="${esc(t('Cancel'))}" aria-label="${esc(t('Cancel'))}">${ICON.x}</button></div>`;
     }).join('');
     const facts = [s.year, s.network, (s.genres || []).join(', '), s.runtime ? t('{n} min per episode', { n: s.runtime }) : '', s.state ? (TV_STATE()[s.state] || s.state) : ''].filter(Boolean);
-    v.innerHTML = `
+    paint(v, `
       <div class="hero"><div class="backdrop" style="background-image:url('${esc(IMG(s.backdropPath, 'w1280'))}')"></div>
         <div class="inner"><div class="pimg">${posterImg(s.posterPath, s.title, 'w500')}</div>
           <div style="flex:1;min-width:0">
@@ -892,10 +957,10 @@ function viewSeries(v, id) {
         ${eps.length ? `<div class="card" style="padding:4px 0"><div class="scroll"><table class="eps"><thead><tr><th></th><th>#</th><th>${esc(t('Title'))}</th><th>${esc(t('Aired'))}</th><th>${esc(t('Status'))}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>` :
           `<div class="empty"><h2>${esc(t('No episode listed for this season yet'))}</h2></div>`}
         <div class="movie-body" style="padding:20px 0 0">
-          <div class="card"><h2>${esc(t('History'))}</h2><div id="series-history" class="muted">${esc(t('Loading…'))}</div></div>
+          <div class="card"><h2>${esc(t('History'))}</h2><div id="series-history" class="muted" data-keep="series-history-${id}">${esc(t('Loading…'))}</div></div>
           <div>${dls ? `<div class="card"><h2>${esc(t('Downloads'))}</h2><div class="list">${dls}</div></div>` : ''}</div>
         </div>
-      </div>`;
+      </div>`);
     loadHistory('series-history', (e) => e.seriesId === id);
   };
   seriesView = { id, draw, load };
@@ -919,7 +984,7 @@ function decisionTable(r, grabAttrs, series) {
   const ok = lastDecisions.filter((d) => d.approved).length;
   return `<div class="row" style="flex-wrap:wrap;margin-bottom:12px">${idx}<span class="spacer"></span>
       <span class="muted">${esc(plural(lastDecisions.length, '{n} result', '{n} results'))} · <b class="ok-text">${esc(plural(ok, '{n} accepted', '{n} accepted'))}</b>${hidden ? ` · ${esc(plural(hidden, '{n} result for another title left out', '{n} results for other titles left out'))}` : ''}</span></div>
-      ${lastDecisions.length ? `<div class="scroll"><table><thead><tr><th>Release</th>${series ? `<th>${esc(t('Episodes'))}</th>` : ''}<th>${esc(t('Quality'))}</th><th>${esc(t('Size'))}</th><th>${esc(t('Seeds'))}</th><th>${esc(t('Age'))}</th><th>${esc(t('Indexer'))}</th><th>Score</th><th></th></tr></thead><tbody>
+      ${lastDecisions.length ? `<div class="scroll"><table><thead><tr><th>Release</th>${series ? `<th>${esc(t('Episodes'))}</th>` : ''}<th>${esc(t('Quality'))}</th><th>${esc(t('Size'))}</th><th>${esc(t('Seeds'))}</th><th>${esc(t('Age'))}</th><th>${esc(t('Indexer'))}</th><th title="${esc(t('Bonus of your preferences: +20 for your first language (5 less for each next one), the preferred terms of the profile (MULTi +10, VFF +5, HDR +2 by default) and +1 for freeleech. Quality, seeds and size are compared apart.'))}">${esc(t('Bonus'))}</th><th></th></tr></thead><tbody>
       ${lastDecisions.map((d, i) => `<tr class="${d.approved ? '' : 'rejected'}">
         <td><div class="rel-title">${safeUrl(d.release.infoUrl) ? `<a href="${esc(safeUrl(d.release.infoUrl))}" target="_blank" rel="noopener">${esc(d.release.title)}</a>` : esc(d.release.title)}</div>
           <div>${(d.languages || []).map((l) => `<span class="tag l">${esc(l)}</span>`).join('')}${(d.parsed?.releaseGroup || d.episode?.releaseGroup) ? `<span class="tag">${esc(d.parsed?.releaseGroup || d.episode?.releaseGroup)}</span>` : ''}${d.release.downloadVolumeFactor === 0 ? '<span class="tag g">freeleech</span>' : ''}</div>
@@ -1015,7 +1080,7 @@ function episodePanel(s, e) {
   return `<div class="ep-detail">
     <div class="ep-main">
       ${e.overview ? `<p class="ep-full">${esc(e.overview)}</p>` : ''}
-      ${e.file ? `<div class="row wrap"><button class="primary big" data-act="ep-play" ${attrs}>${ICON.play}${esc(t('Play'))}</button>
+      ${e.file ? `<div class="row wrap"><button class="primary big" data-act="ep-play" ${attrs}>${ICON.play}${esc(t('Play'))}</button>${subtitlePick(`ep-sub-${e.season}-${e.number}`, subs)}
         <span class="tag q">${esc(e.file.qualityName)}</span><span class="muted">${size(e.file.size)}</span></div>
         <div class="rel-title muted" style="margin-top:6px">${esc(e.file.releaseTitle || '')}</div>` : `<p class="muted">${esc(t('Not downloaded yet: tick it and start a search, or use the manual search.'))}</p>`}
       <h3>${esc(t('Subtitles'))}</h3>
@@ -2034,7 +2099,11 @@ const actions = {
     try { await api('POST', `/series/${el.dataset.series}/grab`, { release: d.release, episodes: lastSeriesKeys }); toast(t('Sent to {client}', { client: clientName() }), 'ok'); $('#modal-root').innerHTML = ''; refreshStatus(); }
     catch (e) { fail(e); el.disabled = false; el.textContent = t('Retry'); }
   },
-  'ep-play': async (el) => { try { await api('POST', `/series/${movieId()}/play?season=${el.dataset.season}&episode=${el.dataset.episode}`); toast(t('Playback started in the player')); } catch (e) { fail(e); } },
+  'ep-play': async (el) => {
+    // the list of the episode panel when it is open (the quick button of the row uses it too)
+    const q = subQuery(`ep-sub-${el.dataset.season}-${el.dataset.episode}`);
+    try { await api('POST', `/series/${movieId()}/play?season=${el.dataset.season}&episode=${el.dataset.episode}${q ? '&' + q : ''}`); toast(t('Playback started in the player')); } catch (e) { fail(e); }
+  },
   'ep-play-live': async (el) => { try { await api('POST', `/series/${movieId()}/play?live=1&season=${el.dataset.season}&episode=${el.dataset.episode}`); toast(t('Playing the file being downloaded')); } catch (e) { fail(e); } },
   'ep-subs': (el) => subtitleModal(`/series/${movieId()}/subtitles?season=${el.dataset.season}&episode=${el.dataset.episode}`, t('Subtitles · {label}', { label: epLabel(+el.dataset.season, +el.dataset.episode) })),
   'sdl-cancel': (el) => {
@@ -2082,7 +2151,10 @@ const actions = {
       if (el.dataset.kind === 'subtitles') drawSubProviders(); else drawIndexers();
     } catch (e) { fail(e); }
   },
-  play: async () => { try { await api('POST', `/movies/${movieId()}/play`); toast(t('Playback started in the player')); } catch (e) { fail(e); } },
+  play: async () => {
+    const q = subQuery('play-sub');
+    try { await api('POST', `/movies/${movieId()}/play${q ? '?' + q : ''}`); toast(t('Playback started in the player')); } catch (e) { fail(e); }
+  },
   'play-live': async () => { try { await api('POST', `/movies/${movieId()}/play?live=1`); toast(t('Playing the file being downloaded')); } catch (e) { fail(e); } },
   autosearch: async (el) => { el.disabled = true; try { await api('POST', `/movies/${movieId()}/autosearch`); toast(t('Search started')); setTimeout(refreshStatus, 800); } catch (e) { fail(e); el.disabled = false; } },
   manual: () => manualSearch(movieId()),

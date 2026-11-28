@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"cinearr/internal/app"
 	"cinearr/internal/diag"
 	"cinearr/internal/i18n"
 	"cinearr/internal/model"
@@ -165,7 +166,11 @@ func (s *Server) seriesRoutes(h handle) {
 	}))
 	h("POST /api/series/{id}/play", s.withID(func(ctx context.Context, id int, r *http.Request) (any, error) {
 		season, episode := episodeArgs(r)
-		return nil, s.App.PlayEpisode(id, season, episode, r.URL.Query().Get("live") == "1")
+		choice, err := app.ParseSubtitleChoice(r.URL.Query().Get("sub"))
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.App.PlayEpisode(id, season, episode, r.URL.Query().Get("live") == "1", choice)
 	}))
 	h("POST /api/series/{id}/open-folder", s.withID(func(ctx context.Context, id int, r *http.Request) (any, error) {
 		x, ok := s.App.Store.Series(id)

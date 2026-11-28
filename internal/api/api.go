@@ -244,7 +244,11 @@ func (s *Server) Handler() http.Handler {
 		return nil, s.App.CancelDownload(ctx, id, r.URL.Query().Get("blocklist") == "1")
 	}))
 	h("POST /api/movies/{id}/play", s.withID(func(ctx context.Context, id int, r *http.Request) (any, error) {
-		return nil, s.App.Play(id, r.URL.Query().Get("live") == "1")
+		choice, err := app.ParseSubtitleChoice(r.URL.Query().Get("sub"))
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.App.Play(id, r.URL.Query().Get("live") == "1", choice)
 	}))
 	h("POST /api/movies/{id}/open-folder", s.withID(func(ctx context.Context, id int, r *http.Request) (any, error) {
 		m, ok := s.App.Store.Movie(id)
@@ -448,7 +452,11 @@ func (s *Server) withID(fn func(ctx context.Context, id int, r *http.Request) (a
 func (s *Server) status(w http.ResponseWriter, r *http.Request) (any, error) {
 	st := s.App.Store.Settings()
 	last, syncErr := s.App.SyncStatus()
-	_, perr := player.Find(st.Player.Kind, st.Player.Path, s.App.Store.Dir())
+	exe, perr := player.Find(st.Player.Kind, st.Player.Path, s.App.Store.Dir())
+	family := ""
+	if perr == nil {
+		family = player.Family(exe)
+	}
 	_, crashAt := diag.CrashReport()
 	var crash any
 	if !crashAt.IsZero() {
@@ -457,7 +465,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) (any, error) {
 	return map[string]any{
 		"crash": crash, "debug": diag.Debug(),
 		"version": Version, "setupDone": st.SetupDone, "dataDir": s.App.Store.Dir(), "os": runtime.GOOS,
-		"busy": s.App.Busy(), "busySeries": s.App.BusySeries(), "scanning": s.App.LastScan().Running, "metadata": s.App.MetadataStatus(), "seriesPath": st.SeriesPath != "", "lastSync": last, "syncError": syncErr, "playerFound": perr == nil, "client": dlclient.Name(st.Client.Kind),
+		"busy": s.App.Busy(), "busySeries": s.App.BusySeries(), "scanning": s.App.LastScan().Running, "metadata": s.App.MetadataStatus(), "seriesPath": st.SeriesPath != "", "lastSync": last, "syncError": syncErr, "playerFound": perr == nil, "playerFamily": family, "client": dlclient.Name(st.Client.Kind),
 		"indexers": len(st.Indexers), "tmdb": st.TMDBKey != "" || tmdb.BuiltinKey != "", "tmdbBuiltin": tmdb.BuiltinKey != "", "subtitleProviders": len(s.App.SubtitleProviders()),
 		"openSubtitlesBuiltin": subtitles.BuiltinOpenSubtitlesKey != "", "subtitleProblem": app.SubtitleSetupProblem(st.Subtitles),
 		"keyProblems": app.KeyProblems(st),
