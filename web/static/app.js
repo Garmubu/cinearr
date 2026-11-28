@@ -455,8 +455,8 @@ function viewLibrary(v, arg) {
       <div class="searchbar" style="max-width:300px">${ICON.discover}<input id="lib-text" placeholder="${esc(t('Filter'))}" value="${esc(libText)}"></div></div>
     <div id="meta-progress"></div><div id="scan-report"></div>
     <div class="tabs" role="tablist">
-      <button class="tab ${libKind === 'films' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'films'}" data-act="lib-kind" data-k="films">${ICON.film}${esc(t('Films'))} <span class="muted">${state.movies.length}</span></button>
-      <button class="tab ${libKind === 'series' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'series'}" data-act="lib-kind" data-k="series">${ICON.tv}${esc(t('Series'))} <span class="muted">${state.series.length}</span></button></div>
+      <button class="tab ${libKind === 'films' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'films'}" data-act="lib-kind" data-k="films">${ICON.film}${esc(t('Films'))} <span class="muted" id="lib-n-films">${state.movies.length}</span></button>
+      <button class="tab ${libKind === 'series' ? 'active' : ''}" role="tab" aria-selected="${libKind === 'series'}" data-act="lib-kind" data-k="series">${ICON.tv}${esc(t('Series'))} <span class="muted" id="lib-n-series">${state.series.length}</span></button></div>
     <div class="chips" style="margin-bottom:20px">
       ${filters.map(([k, l]) => `<span class="chip ${libFilter === k ? 'active' : ''}" data-act="lib-filter" data-f="${k}">${esc(l)}</span>`).join('')}
     </div><div id="lib"></div></div>`;
@@ -470,6 +470,9 @@ function drawLibrary() {
   const box = $('#lib');
   if (!box) return;
   drawScan();
+  // the counts of the tabs follow the lists (films added by a scan…)
+  $('#lib-n-films').textContent = state.movies.length;
+  $('#lib-n-series').textContent = state.series.length;
   if (libKind === 'series') { drawSeriesLibrary(box); return; }
   let list = state.movies;
   if (libFilter === 'available') list = list.filter((m) => m.status === 'available');
@@ -532,7 +535,11 @@ function drawScan() {
   const box = $('#scan-report');
   if (!box) return;
   const r = lastScan;
-  if (!r || running || !r.finished || (!(r.unknown || []).length && !(r.missing || []).length && !(r.errors || []).length && !(r.notes || []).length)) { box.innerHTML = ''; return; }
+  if (!r || running || !r.finished || (!(r.unknown || []).length && !(r.missing || []).length && !(r.errors || []).length && !(r.notes || []).length)) { box.innerHTML = ''; box.dataset.at = ''; return; }
+  // the page is redrawn every few seconds: the same report is left as it
+  // is, so a detail the user opened stays open
+  if (box.dataset.at === r.finished && box.innerHTML) return;
+  box.dataset.at = r.finished;
   const list = (items) => `<ul class="mono scan-list">${items.slice(0, 50).map((x) => `<li>${esc(x)}</li>`).join('')}${items.length > 50 ? `<li>…</li>` : ''}</ul>`;
   box.innerHTML = `${(r.notes || []).map((n) => `<div class="callout warn">${esc(n)}</div>`).join('')}<div class="callout">${esc(t('Last update of the library: {date}', { date: date(r.finished) }))}
     ${(r.unknown || []).length ? `<details><summary>${esc(plural(r.unknown.length, '{n} video not recognised (name it “Title (Year)” to help)', '{n} videos not recognised (name them “Title (Year)” to help)'))}</summary>${list(r.unknown)}</details>` : ''}
@@ -1107,16 +1114,15 @@ function deleteModal(title, name, filesLabel, path, done, back, after) {
 function resetModal() {
   const md = modal({ title: t('Reset Cinearr'),
     body: `<p>${esc(t('Cinearr returns to its first launch and the setup wizard starts again.'))}</p>
-      <p class="muted">${esc(t('Erased: the TMDB key, the torrent client, the folders, the indexers, the subtitle providers, the player settings, the language, the history and the blocklist.'))}</p>
-      <p class="ok-text">${esc(t('Kept: your films and series in the library, and every file on disk.'))}</p>
-      <label class="check"><input type="checkbox" id="reset-lib">${esc(t('Also empty the library (the lists of films and series; the files stay on disk)'))}</label>
+      <p class="muted">${esc(t('Erased: the settings (TMDB key, torrent client, folders, indexers, subtitle providers, player, language), the lists of films and series of the library, the history and the blocklist.'))}</p>
+      <p class="ok-text">${esc(t('Kept: every file on disk. The films and series of the folders you choose in the wizard are added to the library again.'))}</p>
       <label class="check"><input type="checkbox" id="reset-players">${esc(t('Also delete the players downloaded by Cinearr'))}</label>`,
     footer: `<button data-no>${esc(t('Cancel'))}</button><button class="danger" data-yes>${esc(t('Reset'))}</button>` });
   md.el.querySelector('[data-no]').onclick = md.close;
   md.el.querySelector('[data-yes]').onclick = async (e) => {
     e.currentTarget.disabled = true;
     try {
-      await api('POST', '/reset', { library: !!$('#reset-lib')?.checked, players: !!$('#reset-players')?.checked });
+      await api('POST', '/reset', { players: !!$('#reset-players')?.checked });
       try { localStorage.removeItem('cinearr.setupStep'); localStorage.removeItem('cinearr.lang'); } catch (x) { /* ignore */ }
       location.hash = '#/setup';
       location.reload();
@@ -1551,7 +1557,7 @@ function drawSettingsTab() {
         <div class="card"><h2>${esc(t('Version'))}</h2>
         <div class="row" style="flex-wrap:wrap"><span>Cinearr ${esc(state.status?.version || '')}</span><button class="small" data-act="check-update">${ICON.refresh}${esc(t('Check for updates'))}</button><span id="update-result" class="muted"></span></div></div>
         <div class="card danger-zone"><h2>${esc(t('Reset'))}</h2>
-        <p class="muted">${esc(t('Erases every setting and starts the setup wizard again, to configure Cinearr from scratch. Your films and series stay in the library and no file is deleted.'))}</p>
+        <p class="muted">${esc(t('Erases every setting and empties the library lists, then starts the setup wizard again, to configure Cinearr from scratch. No file is deleted: the films and series of the folders you choose are added back.'))}</p>
         <button class="danger" data-act="reset-app">${ICON.refresh}${esc(t('Reset Cinearr'))}</button></div>`;
       break;
   }
@@ -1853,7 +1859,9 @@ function subConfigModal(cfg, index) {
 let setupStep = (() => { try { return +localStorage.getItem('cinearr.setupStep') || 0; } catch (e) { return 0; } })();
 function rememberStep() { try { localStorage.setItem('cinearr.setupStep', String(setupStep)); } catch (e) { /* ignore */ } }
 let draft = null;
-const SETUP_STEPS = ['welcome', 'tmdb', 'client', 'library', 'player', 'indexers', 'subtitles'];
+// The TMDB step is only shown when Cinearr was built without its own TMDB
+// key; otherwise a key of the user's own goes in Settings › General.
+const SETUP_STEPS = () => ['welcome', ...(state.status?.tmdbBuiltin ? [] : ['tmdb']), 'client', 'library', 'player', 'indexers', 'subtitles'];
 
 async function viewSetup(v) {
   if (!draft) draft = await api('GET', '/settings');
@@ -1862,14 +1870,15 @@ async function viewSetup(v) {
   editClients(s);
   plEdit = s.player;
   subEdit = s.subtitles;
-  if (setupStep >= SETUP_STEPS.length) setupStep = 0;
-  const step = SETUP_STEPS[setupStep];
+  const steps = SETUP_STEPS();
+  if (setupStep >= steps.length) setupStep = 0;
+  const step = steps[setupStep];
   let body = '';
   switch (step) {
     case 'welcome':
       body = `<div class="choice lang-choice" role="radiogroup" aria-label="Language">${UI_LANGUAGES.map(([c, n]) => `<button type="button" role="radio" aria-checked="${c === LANG}" class="choice-item ${c === LANG ? 'active' : ''}" data-act="pick-lang" data-lang="${c}">${ICON.globe}${esc(n)}</button>`).join('')}</div>
         <h1>${esc(t('Welcome to Cinearr'))}</h1><p class="lead">${esc(t('Search a film or a series: Cinearr finds the best release on your sites, has your torrent client download it, stores it in your library, fetches the subtitles and opens it in your video player.'))}</p>
-        <div class="callout">${esc(t('A few minutes of setup:'))}<ol><li>${esc(state.status?.tmdbBuiltin ? t('the language of the film information') : t('a free TMDB key (film information)'))}</li><li>${esc(t('access to your torrent client (qBittorrent, Transmission, Deluge or µTorrent)'))}</li><li>${esc(t('the folders of your films and series'))}</li><li>${esc(t('the video player'))}</li><li>${esc(t('your sites (indexers)'))}</li><li>${esc(t('the subtitle providers (optional)'))}</li></ol></div>`;
+        <div class="callout">${esc(t('A few minutes of setup:'))}<ol>${state.status?.tmdbBuiltin ? '' : `<li>${esc(t('a free TMDB key (film information)'))}</li>`}<li>${esc(t('access to your torrent client (qBittorrent, Transmission, Deluge or µTorrent)'))}</li><li>${esc(t('the folders of your films and series'))}</li><li>${esc(t('the video player'))}</li><li>${esc(t('your sites (indexers)'))}</li><li>${esc(t('the subtitle providers (optional)'))}</li></ol></div>`;
       break;
     case 'tmdb':
       body = `<h1>${esc(t('Film database'))}</h1><p class="lead">${esc(t('TMDB provides the pages, posters and IMDb id of every film (used to find the right releases).'))}</p>
@@ -1902,11 +1911,11 @@ async function viewSetup(v) {
         <div id="sub-providers"></div>`;
       break;
   }
-  v.innerHTML = `<div class="setup"><div class="row"><img src="icon.svg" alt="" width="40"><b style="font-size:20px">Cinearr</b><span class="spacer"></span><span class="muted">${esc(t('Step {n} / {total}', { n: setupStep + 1, total: SETUP_STEPS.length }))}</span></div>
-    <div class="steps">${SETUP_STEPS.map((_, i) => `<i class="${i <= setupStep ? 'done' : ''}"></i>`).join('')}</div>
+  v.innerHTML = `<div class="setup"><div class="row"><img src="icon.svg" alt="" width="40"><b style="font-size:20px">Cinearr</b><span class="spacer"></span><span class="muted">${esc(t('Step {n} / {total}', { n: setupStep + 1, total: steps.length }))}</span></div>
+    <div class="steps">${steps.map((_, i) => `<i class="${i <= setupStep ? 'done' : ''}"></i>`).join('')}</div>
     <div class="card" style="padding:28px" id="setup-body">${body}</div>
     <div class="row" style="margin-top:18px">${setupStep ? `<button data-act="w-prev">${esc(t('Back'))}</button>` : ''}<span class="spacer"></span>
-      <button class="primary big" data-act="w-next">${esc(setupStep === SETUP_STEPS.length - 1 ? t('Finish') : t('Continue'))}</button></div></div>`;
+      <button class="primary big" data-act="w-next">${esc(setupStep === steps.length - 1 ? t('Finish') : t('Continue'))}</button></div></div>`;
   if (step === 'player') drawPlayers();
   if (step === 'indexers') drawIndexers();
   if (step === 'subtitles') drawSubProviders();
@@ -1939,7 +1948,8 @@ async function pickLanguage(code) {
 
 async function setupNext() {
   saveStep();
-  const step = SETUP_STEPS[setupStep];
+  const steps = SETUP_STEPS();
+  const step = steps[setupStep];
   if (step === 'tmdb' && !draft.tmdbKey && !state.status?.tmdbBuiltin) return toast(t('The TMDB key is needed to search films'), 'bad');
   if (step === 'library' && !draft.libraryPath) return toast(t('Choose a folder for your films'), 'bad');
   if (step === 'player' && playersInfo && playersInfo.error) toast(t('No player ready: you can install one later in Settings › Player'));
@@ -1947,7 +1957,7 @@ async function setupNext() {
   try {
     const cur = await api('GET', '/settings');
     draft.indexers = cur.indexers;
-    if (setupStep === SETUP_STEPS.length - 1) {
+    if (setupStep === steps.length - 1) {
       draft.setupDone = true;
       await api('PUT', '/settings', draft);
       draft = null;

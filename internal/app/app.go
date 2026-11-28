@@ -77,6 +77,29 @@ func New(st *store.Store, logger *log.Logger) *App {
 	}
 }
 
+// ForgetState drops what the service remembers of the configuration before
+// a reset: the report of the last library scan (it named the old folders),
+// the download polling counters, the pauses of the sources and the reload
+// of the pages. The caches of clients follow the new settings by themselves.
+func (a *App) ForgetState(indexers []string) {
+	a.mu.Lock()
+	if !a.scan.Running {
+		a.scan = ScanReport{}
+	}
+	a.meta = MetadataReport{}
+	a.metaAgain = false
+	a.missing = map[string]int{}
+	a.imported = map[string]time.Time{}
+	a.syncError = ""
+	a.mu.Unlock()
+	for _, id := range indexers {
+		a.Indexer.Forget(id)
+	}
+	for name := range subtitles.Pauses.All() {
+		subtitles.Pauses.OK(name)
+	}
+}
+
 // Downloader returns the torrent client built from the current settings.
 func (a *App) Downloader() dlclient.Client {
 	s := a.Store.Settings().Client

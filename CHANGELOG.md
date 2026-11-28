@@ -2,6 +2,13 @@
 
 All notable changes for users are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.2]
+
+- The setup wizard no longer asks for a TMDB key: the one provided with Cinearr is used. A key of your own can still be entered in *Settings › General*.
+- *Reset Cinearr* also empties the lists of films and series of the library (files on disk are never touched), so films of the old folders no longer stay after a reset.
+- At the end of the setup wizard, the films and series folders are read at once; the library no longer shows the report of a previous folder.
+- The details of the library report (errors, missing files) no longer close by themselves, and the counts of the *Films* and *Series* tabs follow the library.
+
 ## [0.3.1]
 
 - No key to create any more: the official releases include a TMDB key, so the film information works right away (the OpenSubtitles.com key was already included). Your own keys can still be entered and are used first.

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"cinearr/internal/dlclient"
+	"cinearr/internal/model"
 )
 
 func TestMigrateQBitSettings(t *testing.T) {
@@ -129,5 +130,53 @@ func TestDamagedLibrary(t *testing.T) {
 	st2, err := Open(dir)
 	if err != nil || len(st2.Movies()) != 2 || len(st2.Recovered()) != 0 {
 		t.Fatalf("reopen: %v %d %+v", err, len(st2.Movies()), st2.Recovered())
+	}
+}
+
+// Reset returns to the first launch: settings, history and the lists of
+// films and series are emptied, on disk too, and no video file is touched.
+func TestReset(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Films", "Inception (2010)", "Inception (2010).mkv")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	st, err := Open(filepath.Join(dir, "data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := st.Settings()
+	s.SetupDone, s.LibraryPath, s.TMDBKey = true, filepath.Join(dir, "Films"), "key"
+	if err := st.SaveSettings(s); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.PutMovie(model.Movie{TmdbID: 27205, Title: "Inception", File: &model.MovieFile{Path: video}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.PutSeries(model.Series{TmdbID: 1920, Title: "Twin Peaks"}); err != nil {
+		t.Fatal(err)
+	}
+	st.AddHistory(model.HistoryEvent{Kind: "grabbed", Message: "x"})
+	if err := st.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := Open(filepath.Join(dir, "data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range []*Store{st, reopened} {
+		got := x.Settings()
+		if got.SetupDone || got.LibraryPath != "" || got.TMDBKey != "" {
+			t.Fatalf("settings kept: %+v", got)
+		}
+		if len(x.Movies()) != 0 || len(x.AllSeries()) != 0 || len(x.History()) != 0 {
+			t.Fatalf("library or history kept: %d films, %d series, %d events", len(x.Movies()), len(x.AllSeries()), len(x.History()))
+		}
+	}
+	if _, err := os.Stat(video); err != nil {
+		t.Fatalf("video file touched: %v", err)
 	}
 }

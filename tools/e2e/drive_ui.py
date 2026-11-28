@@ -30,13 +30,11 @@ with sync_playwright() as p:
     pg.click('[data-act=pick-lang][data-lang=fr]')
     wait_text(pg, '.setup', 'Bienvenue dans Cinearr')
     pg.screenshot(path=shots + '01-setup-welcome-fr.png')
-    pg.click('[data-act=w-next]')
-    pg.fill('#f-tmdbKey', 'demo-key')
-    assert pg.input_value('#f-language') == 'fr-FR', pg.input_value('#f-language')
-    pg.click('[data-act=w-test-tmdb]'); pg.wait_for_selector('#w-res .ok-text')
-    pg.screenshot(path=shots + '02-setup-tmdb.png')
+    # the built-in TMDB key: no TMDB step, the torrent client comes next
     pg.click('[data-act=w-next]')
     pg.wait_for_selector('[data-act=dc-kind]')
+    assert not pg.query_selector('#f-tmdbKey')
+    wait_text(pg, '.setup', 'Étape 2 / 6')
     pg.click('[data-act=dc-kind][data-kind=transmission]')
     assert pg.input_value('#dc-url') == 'http://127.0.0.1:9091', pg.input_value('#dc-url')
     pg.fill('#dc-url', info['transmission']); pg.fill('#dc-user', 'admin'); pg.fill('#dc-pass', 'secret')
@@ -47,6 +45,8 @@ with sync_playwright() as p:
     pg.fill('#f-seriesPath', info['series'])
     pg.click('[data-act=w-next]')
     pg.wait_for_selector('.pcard')
+    lang = pg.evaluate("fetch('/api/settings').then(r => r.json()).then(s => s.language)")
+    assert lang == 'fr-FR', lang  # the film pages follow the language chosen first
     pg.click('.pcard[data-id=vlc]'); pg.wait_for_selector('#player-res .ok-text')
     pg.screenshot(path=shots + '04-setup-player.png')
     pg.click('[data-act=w-next]')
@@ -235,19 +235,44 @@ with sync_playwright() as p:
     pg.screenshot(path=shots + '27c-subtitle-sites.png')
     pg.keyboard.press('Escape')
 
-    # ---- reset keeps the library
+    # ---- reset empties the library lists, never the files
+    files_before = [os.path.join(d, f) for d, _, fs in os.walk(info['library']) for f in fs]
+    assert files_before, 'no film file before the reset'
     pg.goto(BASE + '#/settings/data'); pg.wait_for_selector('[data-act=reset-app]')
     pg.screenshot(path=shots + '29-settings-data.png')
-    pg.click('[data-act=reset-app]'); pg.wait_for_selector('#reset-lib')
-    assert not pg.is_checked('#reset-lib')
+    pg.click('[data-act=reset-app]'); pg.wait_for_selector('#reset-players')
+    assert not pg.query_selector('#reset-lib')
     pg.screenshot(path=shots + '30-reset-dialog.png')
     pg.click('.modal [data-yes]')
     pg.wait_for_selector('.setup')
     wait_text(pg, '.setup', 'Welcome to Cinearr')
     lib = pg.evaluate("fetch('/api/movies').then(r => r.json())")
     ser = pg.evaluate("fetch('/api/series').then(r => r.json())")
-    assert len(lib) == 1 and len(ser) == 1, (len(lib), len(ser))
+    assert len(lib) == 0 and len(ser) == 0, (len(lib), len(ser))
+    assert all(os.path.exists(f) for f in files_before), 'a file was touched by the reset'
+    scan = pg.evaluate("fetch('/api/library/scan').then(r => r.json())")
+    assert not scan.get('finished') or scan['finished'].startswith('0001'), scan  # old report forgotten
     pg.screenshot(path=shots + '31-after-reset.png')
+    # the wizard again, with the same folders: when it ends, the folders are
+    # read and the library is filled from the files on disk
+    for _ in range(3):  # welcome, client, library
+        if pg.query_selector('#f-libraryPath'):
+            break
+        pg.click('[data-act=w-next]'); time.sleep(0.4)
+    pg.fill('#f-libraryPath', info['library']); pg.fill('#f-seriesPath', info['series'])
+    while pg.query_selector('[data-act=w-next]'):
+        pg.click('[data-act=w-next]'); time.sleep(0.4)
+        if pg.query_selector('.pcard[data-id=vlc]') and not pg.query_selector('.pcard[data-id=vlc].active'):
+            pg.click('.pcard[data-id=vlc]'); pg.wait_for_selector('#player-res .ok-text')
+    for _ in range(100):
+        lib = pg.evaluate("fetch('/api/movies').then(r => r.json())")
+        if lib:
+            break
+        time.sleep(0.2)
+    assert [m['title'] for m in lib] == ['Inception'], [m['title'] for m in lib]
+    pg.goto(BASE + '#/library'); time.sleep(1)
+    assert 'filmtest' not in pg.inner_text('#view')
+    pg.screenshot(path=shots + '32-library-after-new-setup.png')
     b.close()
 bad = [e for e in errors if 'image.tmdb.org' not in e and 'ERR_' not in e]
 assert not bad, f'console errors: {bad}'

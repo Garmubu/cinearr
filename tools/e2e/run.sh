@@ -6,7 +6,9 @@
 # Needs Python 3 and Playwright: pip install playwright && playwright install chromium
 set -e
 cd "$(dirname "$0")/../.."
-go build -o bin/e2e ./tools/e2e
+# built like an official release: with a built-in TMDB key (the fake TMDB
+# accepts it), so the wizard has no TMDB step
+go build -ldflags "-X cinearr/internal/tmdb.BuiltinKey=e2e-built-in" -o bin/e2e ./tools/e2e
 export PATH="$PWD/tools/e2e/fakebin:$PATH"
 export CINEARR_PLAYER_LOG=/tmp/cinearr-player-args.txt
 

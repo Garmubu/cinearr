@@ -218,3 +218,22 @@ func TestRebuildDamagedLibrary(t *testing.T) {
 		t.Fatalf("no warning in the history: %+v", h)
 	}
 }
+
+// After a reset, the report of the last scan (which named the folders of
+// the previous configuration) is no longer shown.
+func TestForgetState(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := New(st, log.New(io.Discard, "", 0))
+	a.scan = ScanReport{Finished: time.Now(), Errors: []string{"films folder not readable (old)"}}
+	a.missing["HASH"] = 3
+	a.ForgetState(nil)
+	if r := a.LastScan(); !r.Finished.IsZero() || len(r.Errors) != 0 {
+		t.Fatalf("old scan report kept: %+v", r)
+	}
+	if len(a.missing) != 0 {
+		t.Fatal("polling counters kept")
+	}
+}

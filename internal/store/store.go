@@ -524,17 +524,11 @@ func (s *Store) DeleteSeries(id int) error {
 	return s.saveSeriesLocked()
 }
 
-// ResetOptions choose what Reset removes besides the settings.
-type ResetOptions struct {
-	// Library also empties the lists of films and series (the files on
-	// disk are never deleted).
-	Library bool `json:"library"`
-}
-
 // Reset returns to a first-run state: default settings (the setup wizard
-// starts again), no indexers, empty history and blocklist. The films and
-// series stay in the library unless opts.Library is set.
-func (s *Store) Reset(opts ResetOptions) error {
+// starts again), no indexers, empty history and blocklist, and empty lists
+// of films and series. No file on disk is touched: the films and series
+// of the folders chosen in the wizard are read again afterwards.
+func (s *Store) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.settings = Defaults()
@@ -544,13 +538,12 @@ func (s *Store) Reset(opts ResetOptions) error {
 	s.history, s.blocklist = nil, nil
 	_ = writeJSON(filepath.Join(s.dir, "history.json"), []model.HistoryEvent{})
 	_ = writeJSON(filepath.Join(s.dir, "blocklist.json"), []model.BlocklistEntry{})
-	if opts.Library {
-		s.movies = map[int]*model.Movie{}
-		s.series = map[int]*model.Series{}
-		_ = s.saveMoviesLocked()
-		_ = s.saveSeriesLocked()
+	s.movies = map[int]*model.Movie{}
+	s.series = map[int]*model.Series{}
+	if err := s.saveMoviesLocked(); err != nil {
+		return err
 	}
-	return nil
+	return s.saveSeriesLocked()
 }
 
 // Blocklist returns the blocklist.
