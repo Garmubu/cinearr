@@ -558,7 +558,9 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) (any, erro
 		s.App.MoveLibrary(cur.SeriesPath, v.SeriesPath, true)
 		moved = true
 	}
-	if moved && v.SetupDone {
+	// the folders are read when they change, and when the setup wizard
+	// ends (it saved them at an earlier step)
+	if v.SetupDone && (moved || !cur.SetupDone) {
 		s.App.StartScan()
 	}
 	diag.SetDebug(v.Debug || s.ForceDebug)

@@ -84,15 +84,14 @@ Extract the archive and run `./install.sh`: it asks for the folder (by default `
 
 A wizard asks, step by step, for:
 
-1. the **language** of the interface;
-2. the language of the film pages, and optionally your own **TMDB key** (with a *Check* button);
-3. the **torrent client** (with a *Test* button);
-4. the **films folder** and the **series folder** (ideally on the same disk as the downloads of the torrent client: imports are then instant hard links);
-5. the **video player** (detected, or installed for you);
-6. your **indexers** (search the list of sites, enter your credentials, *Test*, *Save*);
-7. the **subtitle providers** (optional).
+1. the **language** of the interface (the film pages follow it);
+2. the **torrent client** (with a *Test* button);
+3. the **films folder** and the **series folder** (ideally on the same disk as the downloads of the torrent client: imports are then instant hard links);
+4. the **video player** (detected, or installed for you);
+5. your **indexers** (search the list of sites, enter your credentials, *Test*, *Save*);
+6. the **subtitle providers** (optional).
 
-Everything can be changed later in *Settings*.
+When the wizard ends, the films and series folders are read and their videos are added to the library. Everything can be changed later in *Settings*, including the language of the film pages and a TMDB key of your own (*Settings › General*). A Cinearr built without a TMDB key asks for one in the wizard.
 
 ## Everyday use
 
@@ -144,7 +143,7 @@ Everything can be changed later in *Settings*.
 
 ### Starting again from scratch
 
-*Settings › Data and diagnostics › Reset Cinearr* erases every setting (TMDB key, torrent client, folders, indexers, subtitle providers, player, language), the history and the blocklist, then starts the wizard again. Your films and series stay in the library and **no file is ever deleted**. Two options also empty the library lists or delete the players Cinearr installed.
+*Settings › Data and diagnostics › Reset Cinearr* erases every setting (TMDB key, torrent client, folders, indexers, subtitle providers, player, language), the lists of films and series of the library, the history and the blocklist, then starts the wizard again. **No file is ever deleted**: at the end of the wizard, the films and series of the folders you choose are added to the library again. An option also deletes the players Cinearr installed.
 
 ## Configuration reference
 

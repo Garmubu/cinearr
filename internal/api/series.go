@@ -13,7 +13,6 @@ import (
 	"cinearr/internal/i18n"
 	"cinearr/internal/model"
 	"cinearr/internal/proxy"
-	"cinearr/internal/store"
 	"cinearr/internal/subtitles"
 )
 
@@ -234,24 +233,25 @@ func (s *Server) seriesRoutes(h handle) {
 	}))
 	h("POST /api/reset", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var v struct {
-			store.ResetOptions
 			Players bool `json:"players"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
 			return nil, err
 		}
-		if err := s.App.Store.Reset(v.ResetOptions); err != nil {
+		var indexers []string
+		for _, c := range s.App.Store.Settings().Indexers {
+			indexers = append(indexers, c.ID)
+		}
+		if err := s.App.Store.Reset(); err != nil {
 			return nil, err
 		}
+		s.App.ForgetState(indexers)
 		proxy.Set(s.App.Store.Settings().Proxy)
 		if v.Players {
 			_ = os.RemoveAll(filepath.Join(s.App.Store.Dir(), "players"))
 		}
-		for _, c := range s.App.Store.Settings().Indexers {
-			s.App.Indexer.Forget(c.ID)
-		}
 		i18n.SetLanguage("")
-		diag.Printf("[app] configuration reset (library emptied: %v, players removed: %v)", v.Library, v.Players)
+		diag.Printf("[app] configuration reset (library emptied, players removed: %v)", v.Players)
 		return nil, nil
 	})
 }
