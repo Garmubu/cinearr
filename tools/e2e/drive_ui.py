@@ -29,6 +29,9 @@ with sync_playwright() as p:
     pg.screenshot(path=shots + '01-setup-welcome-en.png')
     pg.click('[data-act=pick-lang][data-lang=fr]')
     wait_text(pg, '.setup', 'Bienvenue dans Cinearr')
+    # the motto stays in French in every language
+    assert 'Pour que la culture soit accessible au plus grand nombre' in pg.inner_text('.setup .motto')
+    assert pg.evaluate("getComputedStyle(document.querySelector('.setup .motto')).fontStyle") == 'italic'
     pg.screenshot(path=shots + '01-setup-welcome-fr.png')
     # the built-in TMDB key: no TMDB step, the torrent client comes next
     pg.click('[data-act=w-next]')

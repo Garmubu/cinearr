@@ -2,6 +2,10 @@
 
 All notable changes for users are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+- The welcome screen of the first launch and the first page of the Windows installer carry the motto of Cinearr: *« Pour que la culture soit accessible au plus grand nombre »*.
+
 ## [0.4.2]
 
 - mpv: the subtitle chosen in Cinearr is the one shown at the start, and every other subtitle (files and those inside the video) stays available during playback; *No subtitles* starts without any but keeps them all. VLC keeps the other subtitle files of the folder too.
