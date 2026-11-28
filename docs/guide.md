@@ -48,7 +48,7 @@ Your settings and your library are kept in a data folder of your user account, a
 
 - **Install**: run `Cinearr-Setup-X.Y.Z.exe`. Choose the folder (by default `%LOCALAPPDATA%\Programs\Cinearr`, no administrator rights needed), and tick *Create a desktop shortcut* if you want one. Cinearr appears in the Start Menu and in *Settings › Apps*.
 - **Update**: in *Settings › Data and diagnostics*, **Check for updates** then **Update now**; or run `update.exe` in the installation folder. It downloads the new installer from the releases page, checks it against `checksums.txt`, closes Cinearr, installs the update and starts Cinearr again.
-- **Uninstall**: run `uninstall.exe` in the installation folder: one window with **Uninstall** and **Cancel**, and a box to tick to delete the data folder too (settings, library lists, history, logs, installed players). From *Settings › Apps*, Windows asks first, then Cinearr offers **Keep the data** or **Delete the data**. Your films, series and downloads are never deleted.
+- **Uninstall**: run `uninstall.exe` in the installation folder: one window with **Uninstall** and **Cancel**, and a box to tick to delete the data folder too (settings, library lists, history, logs; the players Cinearr downloaded into it go with it, players installed otherwise are never touched). From *Settings › Apps*, Windows asks first, then Cinearr offers **Keep the data** or **Delete the data**. Your films, series and downloads are never deleted.
 - Running the installer again while Cinearr is installed shows where it is, with buttons to run `update.exe` or `uninstall.exe`.
 - **Portable version**: unzip `Cinearr-X.Y.Z-windows-x64-portable.zip` anywhere and run `cinearr.exe`. To keep the data next to the program (on a USB drive, for instance), create a folder named `data` beside it. To update, replace `cinearr.exe` only.
 
@@ -178,7 +178,7 @@ The quality profile lists the allowed qualities from worst to best, a target qua
 
 ### Subtitles
 
-You add the providers you want and enter their account or key when they need one. Each has a **Test** button.
+You add the providers you want and enter their account or key when they need one. Each has a **Test** button. In the official releases, **OpenSubtitles.com** is already in the list at the first launch (and after a reset), enabled with the key provided with Cinearr: **Edit** it to enter your account or your own key, or remove it if you do not want it.
 
 | Provider | Needs | Languages | Films | Series |
 |---|---|---|---|---|
@@ -199,7 +199,7 @@ Nothing restricts you to this list:
 - **Your own site** works with any subtitle website: in the subtitle search of a film or an episode, a *Search on …* button opens its search page with the title filled in (`{query}`, `{title}`, `{original}`, `{year}`, `{imdb}`, `{tmdb}`, `{season}`, `{episode}`, `{s00e00}` and `{lang}` are replaced). You download the subtitle there and add it with **Add a subtitle file**.
 - **Add a subtitle file** accepts `.srt`, `.ass`, `.ssa`, `.vtt`, `.sub` or a `.zip`: the file is saved next to the video, converted to UTF-8, and the player loads it.
 
-The official releases include an OpenSubtitles.com application key: you only enter your OpenSubtitles account. Without an account, OpenSubtitles allows 5 downloads a day; with a free account, 20.
+The official releases include an OpenSubtitles.com application key: you only enter your OpenSubtitles account, if you have one. Without an account, OpenSubtitles allows 5 downloads a day; with a free account, 20.
 
 ### Built-in keys
 

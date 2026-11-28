@@ -128,6 +128,19 @@ func Defaults() Settings {
 	}
 }
 
+// FirstRun returns the settings of a new installation or of a reset: the
+// defaults, plus OpenSubtitles.com enabled with the key provided with
+// Cinearr when this build has one (the user can edit or remove it). It is
+// never applied to existing settings, so a provider the user removed does
+// not come back.
+func FirstRun() Settings {
+	s := Defaults()
+	if subtitles.BuiltinOpenSubtitlesKey != "" {
+		s.Subtitles.Providers = []subtitles.Config{{ID: "opensubtitles", Enabled: true}}
+	}
+	return s
+}
+
 // migrate converts settings written by older versions.
 func (st *Settings) migrate() {
 	if st.LegacyQBit != nil {
@@ -214,7 +227,9 @@ func Open(dir string) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{dir: dir, settings: Defaults(), movies: map[int]*model.Movie{}, series: map[int]*model.Series{}}
-	if err := readJSON(filepath.Join(dir, "settings.json"), &s.settings); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := readJSON(filepath.Join(dir, "settings.json"), &s.settings); errors.Is(err, os.ErrNotExist) {
+		s.settings = FirstRun() // new installation
+	} else if err != nil {
 		return nil, err
 	}
 	s.settings.migrate()
@@ -531,7 +546,7 @@ func (s *Store) DeleteSeries(id int) error {
 func (s *Store) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.settings = Defaults()
+	s.settings = FirstRun()
 	if err := writeJSON(filepath.Join(s.dir, "settings.json"), s.settings); err != nil {
 		return err
 	}

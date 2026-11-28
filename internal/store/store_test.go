@@ -7,6 +7,7 @@ import (
 
 	"cinearr/internal/dlclient"
 	"cinearr/internal/model"
+	"cinearr/internal/subtitles"
 )
 
 func TestMigrateQBitSettings(t *testing.T) {
@@ -178,5 +179,51 @@ func TestReset(t *testing.T) {
 	}
 	if _, err := os.Stat(video); err != nil {
 		t.Fatalf("video file touched: %v", err)
+	}
+}
+
+// OpenSubtitles.com is offered with the key of Cinearr to a new
+// installation and after a reset, never added to existing settings.
+func TestFirstRunOpenSubtitles(t *testing.T) {
+	old := subtitles.BuiltinOpenSubtitlesKey
+	defer func() { subtitles.BuiltinOpenSubtitlesKey = old }()
+
+	subtitles.BuiltinOpenSubtitlesKey = ""
+	st, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := st.Settings().Subtitles.Providers; len(p) != 0 {
+		t.Fatalf("build without a key: providers %+v", p)
+	}
+
+	subtitles.BuiltinOpenSubtitlesKey = "built-in"
+	dir := t.TempDir()
+	st, err = Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := st.Settings().Subtitles.Providers
+	if len(p) != 1 || p[0].ID != "opensubtitles" || !p[0].Enabled || len(p[0].Settings) != 0 {
+		t.Fatalf("new installation: providers %+v", p)
+	}
+	// the user removes it: it does not come back at the next launch
+	s := st.Settings()
+	s.Subtitles.Providers = []subtitles.Config{}
+	if err := st.SaveSettings(s); err != nil {
+		t.Fatal(err)
+	}
+	if st, err = Open(dir); err != nil {
+		t.Fatal(err)
+	}
+	if p := st.Settings().Subtitles.Providers; len(p) != 0 {
+		t.Fatalf("removed provider came back: %+v", p)
+	}
+	// a reset starts again like a new installation
+	if err := st.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if p := st.Settings().Subtitles.Providers; len(p) != 1 || p[0].ID != "opensubtitles" {
+		t.Fatalf("after a reset: providers %+v", p)
 	}
 }

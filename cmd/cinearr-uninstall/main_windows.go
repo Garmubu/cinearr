@@ -39,7 +39,7 @@ func main() {
 		Instruction: i18n.T("Uninstall Cinearr?"),
 		Content:     i18n.Tf("Cinearr will be removed from %s.\n\nYour films, series and downloads are never deleted.", dir),
 		Action:      i18n.T("Uninstall"),
-		CheckBox:    i18n.Tf("Also delete the data of Cinearr (settings, list of films and series, history, logs and installed players, in %s)", data),
+		CheckBox:    i18n.Tf("Also delete the data of Cinearr (settings, list of films and series, history and logs, in %s)", data),
 	}.Show()
 	if err != nil {
 		// without the task dialog: two plain questions
@@ -47,7 +47,7 @@ func main() {
 			return
 		}
 		ok = true
-		deleteData = desktop.Ask(title, i18n.Tf("Also delete the data of Cinearr (settings, list of films and series, history, logs and installed players, in %s)?", data), false) == desktop.Yes
+		deleteData = desktop.Ask(title, i18n.Tf("Also delete the data of Cinearr (settings, list of films and series, history and logs, in %s)?", data), false) == desktop.Yes
 	}
 	if !ok {
 		return

@@ -4,7 +4,7 @@
 
 ![Discover](docs/screenshots/discover.png)
 
-Cinearr runs on your own computer: one file of about 10 MB for Windows, macOS and Linux, nothing to install, no server, no account and no telemetry. It works with the torrent client and the video player you already use. The interface is available in English, French, Spanish, Italian and German.
+Cinearr is a lightweight application that runs on your own computer, on Windows, macOS and Linux: no server, no account and no telemetry. It works with the torrent client and the video player you already use. The interface is available in English, French, Spanish, Italian and German.
 
 ## Features
 
