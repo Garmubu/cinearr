@@ -2,6 +2,13 @@
 
 All notable changes for users are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.1]
+
+- The windows to choose a folder or a file open in front of Cinearr instead of behind it.
+- OpenSubtitles.com is in the subtitle providers from the first launch, with the key provided with Cinearr; edit it to enter your own key or account, or remove it.
+- Uninstall no longer talks about installed players: deleting the data removes the data folder of Cinearr only (with the players it downloaded there), never another program, film or download.
+- README: a shorter presentation, without the file size.
+
 ## [0.4.0]
 
 - Choose the subtitle (or none) active at the launch, next to the **Play** button of a film and in the details of an episode (VLC, mpv and MPC-HC).

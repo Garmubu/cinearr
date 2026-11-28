@@ -117,6 +117,7 @@ tools/release/          package.sh: every file of a release
 
 - `internal/parser/testdata/radarr_cases.json` holds 683 cases extracted from Radarr's NUnit fixtures: they must all pass.
 - `tools/e2e/main.go` starts the real application on `127.0.0.1:7980` with fake TMDB (films Inception…, series Twin Peaks), a fake Cardigann tracker (including a malicious release) and fake qBittorrent and Transmission that “download” sparse files. `tools/e2e/fakebin/vlc` is a fake player that records its arguments.
+- `packaging/linux/uninstall_test.go` runs `uninstall.sh` in a temporary home and checks that only the program and the data folder of Cinearr go.
 - `tools/e2e/series_api.py` tests the series flow through the API; `tools/e2e/drive_ui.py` drives the whole interface (in French) and fails on any console error; `tools/e2e/screenshots.py` regenerates `docs/screenshots/` from the demonstration data (`E2E_DEMO=1`: open films, public-domain classics, a Creative Commons series; generated posters).
 
 ## Style

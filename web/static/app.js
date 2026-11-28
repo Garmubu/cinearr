@@ -1841,9 +1841,12 @@ async function drawSubProviders() {
   box.innerHTML = `${list.length ? `<div class="list">${list.map((c, i) => {
     const p = subInfo(c.id) || { name: c.id, description: '' };
     const own = p.multiple && c.settings?.name;
+    // OpenSubtitles.com without a key of the user's own uses the one of Cinearr
+    const builtin = c.id === 'opensubtitles' && state.status?.openSubtitlesBuiltin && !(c.settings?.apiKey || '').trim();
     return `<div class="item">
       <input type="checkbox" data-act="sub-toggle" data-i="${i}" ${c.enabled ? 'checked' : ''} title="${esc(t('Enabled'))}">
-      <div class="grow"><div class="name">${esc(own ? c.settings.name : p.name)} ${providerScope(p)}</div><div class="det">${esc(own ? (p.link ? c.settings.url : p.name) : p.description || '')}</div></div>
+      <div class="grow"><div class="name">${esc(own ? c.settings.name : p.name)} ${providerScope(p)}${builtin ? ` <span class="tag g">${esc(t('key provided by Cinearr'))}</span>` : ''}</div>
+        <div class="det" title="${esc(p.description || '')}">${esc(builtin ? t('Edit it to enter your own key or your account.') : own ? (p.link ? c.settings.url : p.name) : p.description || '')}</div></div>
       ${pauseBadge(paused[own ? c.settings.name : p.name], 'subtitles', own ? c.settings.name : p.name)}
       <span id="sub-test-${i}" class="muted"></span>
       ${p.link ? '' : `<button class="small" data-act="sub-test" data-i="${i}">${esc(t('Test'))}</button>`}

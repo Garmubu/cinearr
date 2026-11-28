@@ -10,7 +10,7 @@ echo "Uninstall Cinearr from $dir"
 echo
 echo "  1) Uninstall Cinearr and keep its data (for a later reinstallation)"
 echo "  2) Uninstall Cinearr and delete all its data: settings, list of films and series,"
-echo "     history, logs and installed players ($data)"
+echo "     history and logs ($data)"
 echo "  3) Cancel"
 echo
 echo "Your films, series and downloads are never deleted."
@@ -33,7 +33,13 @@ apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 desktop=$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")
 rm -f "$apps/cinearr.desktop" "$desktop/cinearr.desktop"
 if [ "$(readlink "$HOME/.local/bin/cinearr" 2>/dev/null || true)" = "$dir/cinearr" ]; then rm -f "$HOME/.local/bin/cinearr"; fi
-if [ "$wipe" = yes ]; then rm -rf "$data"; fi
+# only the data folder of Cinearr is deleted, never anything around it
+if [ "$wipe" = yes ]; then
+	case "$data" in
+	*/cinearr | "$dir/data") rm -rf "$data" ;;
+	*) echo "The data folder $data was not deleted: unexpected location." ;;
+	esac
+fi
 for f in cinearr update.sh uninstall.sh cinearr.png LICENSE README.md; do
 	rm -f "$dir/$f"
 done
