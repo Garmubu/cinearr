@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"bytes"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -47,11 +48,17 @@ func Pick(dir bool, title string) (string, error) {
 		}
 	}
 	hide(cmd)
-	out, err := cmd.Output()
-	if err != nil {
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Start(); err != nil {
+		return "", nil
+	}
+	// the dialog is kept in front by its owner; this also gives it the focus
+	BringToFront(cmd.Process.Pid)
+	if err := cmd.Wait(); err != nil {
 		return "", nil // dialog cancelled
 	}
-	return strings.TrimRight(strings.TrimSpace(string(out)), "/\\"), nil
+	return strings.TrimRight(strings.TrimSpace(out.String()), "/\\"), nil
 }
 
 // windowsPickScript is the PowerShell script of the dialog. The dialog is

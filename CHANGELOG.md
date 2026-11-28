@@ -2,6 +2,13 @@
 
 All notable changes for users are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.2]
+
+- mpv: the subtitle chosen in Cinearr is the one shown at the start, and every other subtitle (files and those inside the video) stays available during playback; *No subtitles* starts without any but keeps them all. VLC keeps the other subtitle files of the folder too.
+- The player, the folders opened in the Explorer and the updater open in front of the other windows (Windows); on macOS the player is opened like an application, in front.
+- Leaving the settings with changes not saved is refused: a red box offers to save or discard them, and shakes at each new attempt.
+- Posters are those of the original version of each film or series, whatever the language of the interface; the library gets them at the first launch of this version.
+
 ## [0.4.1]
 
 - The windows to choose a folder or a file open in front of Cinearr instead of behind it.

@@ -308,6 +308,7 @@ func (c *Client) Movie(ctx context.Context, id int) (*Details, error) {
 		return nil, err
 	}
 	d.fill()
+	d.PosterPath = c.OriginalPoster(ctx, false, id, d.OriginalLanguage, d.PosterPath)
 	return &d, nil
 }
 

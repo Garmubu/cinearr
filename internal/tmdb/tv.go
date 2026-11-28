@@ -151,6 +151,7 @@ func (c *Client) TV(ctx context.Context, id int) (*TVDetails, error) {
 	if len(d.FirstAirDate) >= 4 {
 		d.Year, _ = strconv.Atoi(d.FirstAirDate[:4])
 	}
+	d.PosterPath = c.OriginalPoster(ctx, true, id, d.OriginalLanguage, d.PosterPath)
 	return &d, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"cinearr/internal/desktop"
 	"cinearr/internal/i18n"
 	"cinearr/internal/update"
 )
@@ -49,5 +50,10 @@ func (s *Server) runUpdate(w http.ResponseWriter, r *http.Request) (any, error) 
 	if p == "" {
 		return nil, i18n.New("automatic update is only available for the version installed with the Windows installer")
 	}
-	return nil, exec.Command(p).Start()
+	cmd := exec.Command(p)
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	desktop.BringToFront(cmd.Process.Pid)
+	return nil, nil
 }

@@ -41,24 +41,28 @@ func TestArgs(t *testing.T) {
 	}
 }
 
-// A subtitle chosen before the launch: only that file, or none, and the
-// player does not pick another one of the folder.
+// A subtitle chosen before the launch is the one shown at the start, or
+// none; every other subtitle stays available in the player.
 func TestArgsChosenSubtitle(t *testing.T) {
+	data := t.TempDir()
 	subs := []string{"/m/Inception.fr.srt", "/m/Inception.en.srt"}
-	base := Options{Title: "Inception (2010)", Subtitles: subs, SubLang: "fr,en", ChooseSubtitle: true}
+	base := Options{Title: "Inception (2010)", Subtitles: subs, SubLang: "fr,en", ChooseSubtitle: true, DataDir: data}
 	en := base
 	en.Subtitle = "/m/Inception.en.srt"
 	none := base
+	script := filepath.Join(data, "mpv", "cinearr-subtitle.lua")
 
 	cases := []struct {
 		name, exe     string
 		o             Options
 		want, notWant []string
 	}{
-		{"mpv file", "/usr/bin/mpv", en, []string{"--sub-auto=no", "--sub-file=/m/Inception.en.srt"}, []string{"--sub-file=/m/Inception.fr.srt", "--slang=", "--sub-auto=fuzzy"}},
-		{"mpv none", "/usr/bin/mpv", none, []string{"--sub-auto=no", "--sid=no"}, []string{"--sub-file=", "--slang="}},
-		{"vlc file", "/usr/bin/vlc", en, []string{"--no-sub-autodetect-file", "--sub-file=/m/Inception.en.srt"}, []string{"--sub-file=/m/Inception.fr.srt", "--sub-language=fr,en"}},
-		{"vlc none", "/usr/bin/vlc", none, []string{"--no-sub-autodetect-file", "--sub-language=none"}, []string{"--sub-file="}},
+		{"mpv file", "/usr/bin/mpv", en, []string{"--sub-auto=fuzzy", "--sub-file=/m/Inception.fr.srt", "--sub-file=/m/Inception.en.srt",
+			"--script=" + script, "--script-opts-append=cinearr-sub=/m/Inception.en.srt"}, []string{"--slang=", "--sid=no", "--sub-auto=no"}},
+		{"mpv none", "/usr/bin/mpv", none, []string{"--sub-auto=fuzzy", "--sid=no", "--sub-file=/m/Inception.fr.srt", "--sub-file=/m/Inception.en.srt",
+			"--script-opts-append=cinearr-nosub=yes"}, []string{"--slang=", "--sub-auto=no"}},
+		{"vlc file", "/usr/bin/vlc", en, []string{"--sub-file=/m/Inception.en.srt"}, []string{"--no-sub-autodetect-file", "--sub-file=/m/Inception.fr.srt", "--sub-language=fr,en"}},
+		{"vlc none", "/usr/bin/vlc", none, []string{"--sub-language=none"}, []string{"--no-sub-autodetect-file", "--sub-file="}},
 		{"mpc file", `C:\x\mpc-hc64.exe`, en, []string{"/sub /m/Inception.en.srt"}, []string{"/m/Inception.fr.srt"}},
 		{"mpc none", `C:\x\mpc-hc64.exe`, none, nil, []string{"/sub"}},
 	}
@@ -75,9 +79,24 @@ func TestArgsChosenSubtitle(t *testing.T) {
 			}
 		}
 	}
+	if b, err := os.ReadFile(script); err != nil || !strings.Contains(string(b), `read_options(opts, "cinearr")`) {
+		t.Errorf("mpv script not written: %v", err)
+	}
 	// another player only gets the film
 	if got := Args("/opt/other/player", "/m/x.mkv", en); len(got) != 1 || got[0] != "/m/x.mkv" {
 		t.Errorf("other player args = %q", got)
+	}
+}
+
+func TestMacBundle(t *testing.T) {
+	for exe, want := range map[string]string{
+		"/Applications/VLC.app/Contents/MacOS/VLC":         "/Applications/VLC.app",
+		"/opt/homebrew/bin/mpv":                            "",
+		"/Users/x/Applications/mpv.app/Contents/MacOS/mpv": "/Users/x/Applications/mpv.app",
+	} {
+		if got := macBundle(exe); got != want {
+			t.Errorf("%s: %q, want %q", exe, got, want)
+		}
 	}
 }
 

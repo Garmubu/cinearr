@@ -763,7 +763,10 @@ type summaryOut struct {
 	Kind      string `json:"kind"`               // movie or tv
 }
 
-func (s *Server) annotate(list []tmdb.Summary, tv bool) []summaryOut {
+// annotate marks the titles already in the library and shows the posters
+// in the original language of each title.
+func (s *Server) annotate(ctx context.Context, list []tmdb.Summary, tv bool) []summaryOut {
+	s.App.TMDB().OriginalPosters(ctx, tv, list)
 	lib := map[int]string{}
 	if tv {
 		for _, x := range s.App.Store.AllSeries() {
@@ -809,7 +812,7 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request) (any, error) {
 			released = append(released, x)
 		}
 	}
-	return map[string]any{"results": s.annotate(released, tv), "more": more}, nil
+	return map[string]any{"results": s.annotate(r.Context(), released, tv), "more": more}, nil
 }
 
 func (s *Server) lookup(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -833,7 +836,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request) (any, error) {
 				find = c.FindTVByImdb
 			}
 			if m, err := find(r.Context(), id[:end]); err == nil {
-				return map[string]any{"results": s.annotate([]tmdb.Summary{*m}, tv), "more": false}, nil
+				return map[string]any{"results": s.annotate(r.Context(), []tmdb.Summary{*m}, tv), "more": false}, nil
 			}
 		}
 	}
@@ -852,7 +855,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"results": s.annotate(list, tv), "more": more}, nil
+	return map[string]any{"results": s.annotate(r.Context(), list, tv), "more": more}, nil
 }
 
 func (s *Server) addMovie(w http.ResponseWriter, r *http.Request) (any, error) {
