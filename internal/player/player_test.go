@@ -41,6 +41,46 @@ func TestArgs(t *testing.T) {
 	}
 }
 
+// A subtitle chosen before the launch: only that file, or none, and the
+// player does not pick another one of the folder.
+func TestArgsChosenSubtitle(t *testing.T) {
+	subs := []string{"/m/Inception.fr.srt", "/m/Inception.en.srt"}
+	base := Options{Title: "Inception (2010)", Subtitles: subs, SubLang: "fr,en", ChooseSubtitle: true}
+	en := base
+	en.Subtitle = "/m/Inception.en.srt"
+	none := base
+
+	cases := []struct {
+		name, exe     string
+		o             Options
+		want, notWant []string
+	}{
+		{"mpv file", "/usr/bin/mpv", en, []string{"--sub-auto=no", "--sub-file=/m/Inception.en.srt"}, []string{"--sub-file=/m/Inception.fr.srt", "--slang=", "--sub-auto=fuzzy"}},
+		{"mpv none", "/usr/bin/mpv", none, []string{"--sub-auto=no", "--sid=no"}, []string{"--sub-file=", "--slang="}},
+		{"vlc file", "/usr/bin/vlc", en, []string{"--no-sub-autodetect-file", "--sub-file=/m/Inception.en.srt"}, []string{"--sub-file=/m/Inception.fr.srt", "--sub-language=fr,en"}},
+		{"vlc none", "/usr/bin/vlc", none, []string{"--no-sub-autodetect-file", "--sub-language=none"}, []string{"--sub-file="}},
+		{"mpc file", `C:\x\mpc-hc64.exe`, en, []string{"/sub /m/Inception.en.srt"}, []string{"/m/Inception.fr.srt"}},
+		{"mpc none", `C:\x\mpc-hc64.exe`, none, nil, []string{"/sub"}},
+	}
+	for _, c := range cases {
+		got := strings.Join(Args(c.exe, "/m/Inception.mkv", c.o), " ")
+		for _, w := range c.want {
+			if !strings.Contains(got, w) {
+				t.Errorf("%s: %q lacks %q", c.name, got, w)
+			}
+		}
+		for _, w := range c.notWant {
+			if strings.Contains(got, w) {
+				t.Errorf("%s: %q has %q", c.name, got, w)
+			}
+		}
+	}
+	// another player only gets the film
+	if got := Args("/opt/other/player", "/m/x.mkv", en); len(got) != 1 || got[0] != "/m/x.mkv" {
+		t.Errorf("other player args = %q", got)
+	}
+}
+
 func TestFamily(t *testing.T) {
 	for exe, want := range map[string]string{
 		`C:\Program Files\VideoLAN\VLC\vlc.exe`:         VLC,

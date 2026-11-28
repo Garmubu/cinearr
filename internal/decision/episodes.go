@@ -142,7 +142,7 @@ func evaluateEpisode(r model.Release, p Profile, ctx EpisodeContext) Decision {
 	if runtime <= 0 {
 		runtime = 45
 	}
-	d.checkRelease(r, p, pe.Languages, pe.HardcodedSubs, runtime, ctx.FreeSpace)
+	d.checkRelease(r, p, pe.Languages, ctx.Series.OriginalLanguage, pe.HardcodedSubs, runtime, ctx.FreeSpace)
 	d.Approved = len(d.Rejections) == 0
 	return d
 }

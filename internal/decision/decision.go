@@ -166,7 +166,7 @@ func evaluateOne(r model.Release, p Profile, ctx Context) Decision {
 		runtime = 110
 	}
 	d.rev = parsed.Quality.Revision.Version*10 + parsed.Quality.Revision.Real
-	d.checkRelease(r, p, parsed.Languages, parsed.HardcodedSubs, runtime, ctx.FreeSpace)
+	d.checkRelease(r, p, parsed.Languages, movie.OriginalLanguage, parsed.HardcodedSubs, runtime, ctx.FreeSpace)
 	d.Approved = len(d.Rejections) == 0
 	return d
 }
@@ -192,7 +192,7 @@ func (d *Decision) checkUpgrade(p Profile, file *model.MovieFile, already string
 // checkRelease runs the specifications shared by films and series:
 // safety, quality, seeds, size for the runtime, restrictions, language,
 // hardcoded subtitles and score.
-func (d *Decision) checkRelease(r model.Release, p Profile, parsedLangs []string, hcSubs string, runtime int, freeSpace int64) {
+func (d *Decision) checkRelease(r model.Release, p Profile, parsedLangs []string, original, hcSubs string, runtime int, freeSpace int64) {
 	// --- Security ------------------------------------------------------
 	if suspiciousTitle.MatchString(r.Title) {
 		d.reject("Suspicious title (executable, protected archive or known decoy)")
@@ -257,7 +257,7 @@ func (d *Decision) checkRelease(r model.Release, p Profile, parsedLangs []string
 	}
 
 	// --- LanguageSpecification ---------------------------------------------
-	langs := effectiveLanguages(r.Title, parsedLangs, p)
+	langs := effectiveLanguages(r.Title, parsedLangs, p, original)
 	d.Languages = langs
 	if len(p.RequiredLanguages) > 0 && !anyIn(p.RequiredLanguages, langs) {
 		d.reject("Language not accepted (%s)", strings.Join(langs, ", "))
@@ -309,14 +309,45 @@ func antiFakeMinMBPerMinute(q quality.Quality) float64 {
 }
 
 // EffectiveLanguages returns the parsed languages, completed for MULTi
-// releases with the languages the profile assumes they contain.
-func EffectiveLanguages(title string, langs []string, p Profile) []string {
-	return effectiveLanguages(title, langs, p)
+// releases with the languages the profile assumes they contain; a release
+// without any language tag is taken to be in the original language of the
+// film or series (original: ISO 639-1 code from TMDB), as Radarr does.
+func EffectiveLanguages(title string, langs []string, p Profile, original string) []string {
+	return effectiveLanguages(title, langs, p, original)
 }
 
-func effectiveLanguages(title string, langs []string, p Profile) []string {
+// multiTag finds the MULTi tag between any separators ("[MULTi]",
+// "MULTi-GRP", "(MULTI)", ".MULTi.", at the start or the end). Radarr's
+// MultiRegex (parser.HasMultipleLanguages) only accepts "_", "." and spaces
+// around it, which misses most French release names; it is kept as ported
+// and this wider test is used for the decisions.
+var multiTag = regexp.MustCompile(`(?i)(?:^|[\W_])multi(?:[\W_]|$)`)
+
+// HasMulti reports whether a release title carries the MULTi tag.
+func HasMulti(title string) bool {
+	return multiTag.MatchString(title) || parser.HasMultipleLanguages(" "+title+" ")
+}
+
+// isoLanguages maps the ISO 639-1 codes of TMDB (original_language) to the
+// language names of the release parser.
+var isoLanguages = map[string]string{
+	"en": "English", "fr": "French", "es": "Spanish", "de": "German", "it": "Italian", "pt": "Portuguese",
+	"nl": "Dutch", "da": "Danish", "sv": "Swedish", "no": "Norwegian", "nb": "Norwegian", "fi": "Finnish",
+	"is": "Icelandic", "pl": "Polish", "cs": "Czech", "sk": "Slovak", "hu": "Hungarian", "ro": "Romanian",
+	"bg": "Bulgarian", "el": "Greek", "ru": "Russian", "uk": "Ukrainian", "lt": "Lithuanian", "lv": "Latvian",
+	"tr": "Turkish", "he": "Hebrew", "ar": "Arabic", "fa": "Persian", "hi": "Hindi", "bn": "Bengali",
+	"ta": "Tamil", "te": "Telugu", "ml": "Malayalam", "kn": "Kannada", "mr": "Marathi", "ur": "Urdu",
+	"th": "Thai", "vi": "Vietnamese", "ja": "Japanese", "ko": "Korean", "zh": "Chinese", "cn": "Chinese",
+	"ca": "Catalan", "sq": "Albanian", "af": "Afrikaans", "tl": "Tagalog", "ga": "Irish", "ka": "Georgian",
+	"mn": "Mongolian", "rm": "Romansh", "fl": "Flemish",
+}
+
+// LanguageName returns the release language name of an ISO 639-1 code, or "".
+func LanguageName(iso string) string { return isoLanguages[strings.ToLower(strings.TrimSpace(iso))] }
+
+func effectiveLanguages(title string, langs []string, p Profile, original string) []string {
 	out := append([]string(nil), langs...)
-	if parser.HasMultipleLanguages(" " + title + " ") {
+	if HasMulti(title) {
 		out = removeValue(out, "Unknown")
 		for _, l := range p.MultiCountsAs {
 			if !contains(out, l) {
@@ -326,6 +357,13 @@ func effectiveLanguages(title string, langs []string, p Profile) []string {
 	}
 	if len(out) == 0 {
 		out = []string{"Unknown"}
+	}
+	// no language tag: the release is in the original language (Radarr's
+	// behaviour for untagged releases)
+	if len(out) == 1 && out[0] == "Unknown" {
+		if name := LanguageName(original); name != "" {
+			out = []string{name, "Original"}
+		}
 	}
 	return out
 }
@@ -358,6 +396,11 @@ func titleMatches(parsed *parser.ParsedMovie, r model.Release, m model.Movie) bo
 
 func termMatches(term, title string) bool {
 	term = strings.TrimSpace(term)
+	// the MULTi term follows the same detection as the languages, so its
+	// bonus and the languages always agree
+	if strings.EqualFold(term, "multi") {
+		return HasMulti(title)
+	}
 	if len(term) > 2 && strings.HasPrefix(term, "/") && strings.HasSuffix(term, "/") {
 		re, err := regexp.Compile("(?i)" + term[1:len(term)-1])
 		return err == nil && re.MatchString(title)

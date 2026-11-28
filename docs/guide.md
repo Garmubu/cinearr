@@ -48,7 +48,7 @@ Your settings and your library are kept in a data folder of your user account, a
 
 - **Install**: run `Cinearr-Setup-X.Y.Z.exe`. Choose the folder (by default `%LOCALAPPDATA%\Programs\Cinearr`, no administrator rights needed), and tick *Create a desktop shortcut* if you want one. Cinearr appears in the Start Menu and in *Settings › Apps*.
 - **Update**: in *Settings › Data and diagnostics*, **Check for updates** then **Update now**; or run `update.exe` in the installation folder. It downloads the new installer from the releases page, checks it against `checksums.txt`, closes Cinearr, installs the update and starts Cinearr again.
-- **Uninstall**: run `uninstall.exe` in the installation folder, or uninstall Cinearr from *Settings › Apps*. You choose between removing the program only, or the program **and** its data folder. Your films, series and downloads are never deleted.
+- **Uninstall**: run `uninstall.exe` in the installation folder: one window with **Uninstall** and **Cancel**, and a box to tick to delete the data folder too (settings, library lists, history, logs, installed players). From *Settings › Apps*, Windows asks first, then Cinearr offers **Keep the data** or **Delete the data**. Your films, series and downloads are never deleted.
 - Running the installer again while Cinearr is installed shows where it is, with buttons to run `update.exe` or `uninstall.exe`.
 - **Portable version**: unzip `Cinearr-X.Y.Z-windows-x64-portable.zip` anywhere and run `cinearr.exe`. To keep the data next to the program (on a USB drive, for instance), create a folder named `data` beside it. To update, replace `cinearr.exe` only.
 
@@ -97,21 +97,22 @@ When the wizard ends, the films and series folders are read and their videos are
 
 ### Films
 
-- In **Discover**, search a film and click it to see its summary, then *Add to the library*.
+- In **Discover**, search a film and click it to see its summary, then *Add to the library*. You stay in Discover to add other titles; the poster shows that the film is in the library, and a click on it opens its page.
 - On the film page: **Automatic search** downloads the best release; **Manual search** lists every release of the film with its quality, size, seeds, indexer and, for refused ones, the reasons. *Download* sends one, *Download anyway* sends a refused one. Results of other films (some sites answer unknown titles with unrelated releases) are left out.
 - Your sites are searched by IMDb id **and** by the local, English and original titles, so that a French film is also found under its English title.
-- Once downloaded: **Play**, **Search subtitles**, **Open the folder**, or **Search a better release** (upgrades follow your quality profile).
+- **Manual search** shows a *Bonus* column: the points of your preferences (preferred languages, preferred terms such as MULTi, freeleech), hover it for the detail. Quality, seeds and size are compared apart. A release without any language tag is taken to be in the original language of the film, and a MULTi release (`MULTi`, `[MULTi]`, `MULTi-GROUP`…) to contain the languages chosen in the profile.
+- Once downloaded: **Play**, **Search subtitles**, **Open the folder**, or **Search a better release** (upgrades follow your quality profile). When the film has subtitle files, a list next to **Play** chooses the one active at the launch, or none; it starts on your preferred language. The choice applies to VLC, mpv and MPC-HC (with MPC-HC, *No subtitles* passes no file but the player may still load one of the same name by itself).
 - The film page shows the cast and the crew with their photos.
 
 
 ### Series
 
-- In **Discover**, switch to **Series**, search a series and add it: all its seasons and episodes appear, nothing is downloaded.
+- In **Discover**, switch to **Series**, search a series and add it: all its seasons and episodes appear, nothing is downloaded. As for films, you stay in Discover.
 - On the series page, choose a season, tick the episodes you want (or **Whole season**) and click **Automatic search**.
   - When every missing episode of a season is ticked, the season is searched first and a **season pack** is taken if one is acceptable; the remaining episodes are then searched one by one.
   - A release containing missing episodes you did not tick is refused, so nothing unwanted is downloaded.
 - **Manual search** works on one ticked episode (each row also has its own button); **Season packs** runs a manual search for the whole season.
-- Each downloaded episode has **Play** and **Subtitles** buttons. The arrow at the end of a row unfolds the episode: summary, cast and crew with photos, its subtitles, and buttons to search subtitles, open your own subtitle sites or add a subtitle file.
+- Each downloaded episode has **Play** and **Subtitles** buttons. The arrow at the end of a row unfolds the episode: summary, cast and crew with photos, its subtitles with the list to choose the one active at the launch (or none), and buttons to search subtitles, open your own subtitle sites or add a subtitle file.
 - The first time episodes are downloaded, Cinearr asks where to store the series if no folder was chosen.
 - Episodes are stored as `Series/Twin Peaks (1990)/Season 02/Twin Peaks - S02E01 - Episode title [Bluray-1080p].mkv`, and series still on the air are refreshed once a day so that new episodes appear.
 

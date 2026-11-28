@@ -237,3 +237,16 @@ func TestForgetState(t *testing.T) {
 		t.Fatal("polling counters kept")
 	}
 }
+
+func TestParseSubtitleChoice(t *testing.T) {
+	for in, want := range map[string]SubtitleChoice{"": {}, "none": {Set: true, Index: -1}, "0": {Set: true}, "2": {Set: true, Index: 2}} {
+		if got, err := ParseSubtitleChoice(in); err != nil || got != want {
+			t.Errorf("%q: %+v %v", in, got, err)
+		}
+	}
+	for _, bad := range []string{"-1", "x", "../a.srt"} {
+		if _, err := ParseSubtitleChoice(bad); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
